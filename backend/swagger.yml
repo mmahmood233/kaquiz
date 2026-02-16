@@ -1,0 +1,475 @@
+openapi: 3.0.0
+info:
+  title: Friend Finder API
+  description: RESTful API for location-based friend tracking application
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        email:
+          type: string
+          format: email
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+            lastUpdated:
+              type: string
+              format: date-time
+        friends:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    FriendRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+        sender:
+          type: object
+        receiver:
+          type: object
+        status:
+          type: string
+          enum: [pending, accepted, denied]
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          type: object
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends/search:
+    get:
+      tags:
+        - Friends
+      summary: Search for users by email
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+          description: Email to search for
+      responses:
+        '200':
+          description: Users found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends/request:
+    post:
+      tags:
+        - Friends
+      summary: Send friend request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - receiverEmail
+              properties:
+                receiverEmail:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Friend request sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      friendRequest:
+                        $ref: '#/components/schemas/FriendRequest'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends/requests:
+    get:
+      tags:
+        - Friends
+      summary: Get pending friend requests
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Pending requests retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      requests:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FriendRequest'
+
+  /friends/respond:
+    post:
+      tags:
+        - Friends
+      summary: Accept or deny friend request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requestId
+                - action
+              properties:
+                requestId:
+                  type: string
+                action:
+                  type: string
+                  enum: [accept, deny]
+      responses:
+        '200':
+          description: Request responded to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /friends:
+    get:
+      tags:
+        - Friends
+      summary: Get friends list
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Friends list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      friends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+  /friends/{friendId}:
+    delete:
+      tags:
+        - Friends
+      summary: Delete friend from list
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: friendId
+          required: true
+          schema:
+            type: string
+          description: Friend user ID
+      responses:
+        '200':
+          description: Friend removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /location/update:
+    post:
+      tags:
+        - Location
+      summary: Update user location
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+      responses:
+        '200':
+          description: Location updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      location:
+                        type: object
+                        properties:
+                          latitude:
+                            type: number
+                          longitude:
+                            type: number
+                          lastUpdated:
+                            type: string
+                            format: date-time
+
+  /location/friends:
+    get:
+      tags:
+        - Location
+      summary: Get friends locations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Friends locations retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      friends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
