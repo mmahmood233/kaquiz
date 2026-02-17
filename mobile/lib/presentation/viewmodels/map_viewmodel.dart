@@ -22,19 +22,10 @@ class MapViewModel extends ChangeNotifier {
   LocationService get locationService => _locationService;
 
   Future<void> initializeLocation() async {
-    final hasPermission = await _locationService.checkLocationPermission();
-    if (!hasPermission) {
-      final granted = await _locationService.requestLocationPermission();
-      if (!granted) {
-        _errorMessage = 'Location permission denied';
-        _state = MapState.error;
-        notifyListeners();
-        return;
-      }
-    }
-
     await loadCurrentLocation();
-    _locationService.startLocationTracking();
+    if (_currentPosition != null) {
+      _locationService.startLocationTracking();
+    }
   }
 
   Future<void> loadCurrentLocation() async {

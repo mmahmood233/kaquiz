@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const User = require('../models/UserModel');
 
 exports.updateLocation = async (req, res, next) => {
   try {
@@ -18,17 +18,7 @@ exports.updateLocation = async (req, res, next) => {
       });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      {
-        location: {
-          latitude,
-          longitude,
-          lastUpdated: new Date()
-        }
-      },
-      { new: true }
-    );
+    const user = await User.updateLocation(req.user.id, latitude, longitude);
 
     res.status(200).json({
       success: true,
@@ -44,18 +34,16 @@ exports.updateLocation = async (req, res, next) => {
 
 exports.getFriendsLocations = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).populate('friends', 'email location');
-
-    const friendsWithLocations = user.friends.filter(friend => 
-      friend.location && 
-      friend.location.latitude !== null && 
-      friend.location.longitude !== null
+    const friends = await User.getFriends(req.user.id);
+    const friendsWithLocations = friends.filter(friend => 
+      friend.latitude !== null && 
+      friend.longitude !== null
     );
 
     res.status(200).json({
       success: true,
       data: {
-        friends: friendsWithLocations
+        friends: friendsWithLocations.map(f => User.toSafeObject(f))
       }
     });
   } catch (error) {

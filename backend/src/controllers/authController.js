@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const User = require('../models/UserModel');
 const { generateToken } = require('../utils/jwt');
 
 exports.register = async (req, res, next) => {
@@ -12,7 +12,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findByEmail(email);
 
     if (userExists) {
       return res.status(400).json({
@@ -21,19 +21,16 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const user = await User.create({
-      email,
-      password
-    });
+    const user = await User.create(email, password);
 
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
         token,
-        user: user.toSafeObject()
+        user: User.toSafeObject(user)
       }
     });
   } catch (error) {
@@ -52,7 +49,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findByEmail(email);
 
     if (!user) {
       return res.status(401).json({
@@ -61,7 +58,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const isPasswordMatch = await user.matchPassword(password);
+    const isPasswordMatch = await User.matchPassword(user, password);
 
     if (!isPasswordMatch) {
       return res.status(401).json({
@@ -70,14 +67,14 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
         token,
-        user: user.toSafeObject()
+        user: User.toSafeObject(user)
       }
     });
   } catch (error) {
@@ -87,12 +84,13 @@ exports.login = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).populate('friends', 'email location');
+    const user = await User.findById(req.user.id);
+    const friends = await User.getFriends(req.user.id);
 
     res.status(200).json({
       success: true,
       data: {
-        user: user.toSafeObject()
+        user: { ...User.toSafeObject(user), friends: friends.map(f => User.toSafeObject(f)) }
       }
     });
   } catch (error) {
