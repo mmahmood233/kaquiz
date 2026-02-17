@@ -70,6 +70,40 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _markers = markers;
     });
+    
+    _fitMapToMarkers();
+  }
+
+  void _fitMapToMarkers() {
+    if (_mapController == null || _markers.isEmpty) return;
+
+    final bounds = _calculateBounds(_markers);
+    if (bounds != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, 100),
+      );
+    }
+  }
+
+  LatLngBounds? _calculateBounds(Set<Marker> markers) {
+    if (markers.isEmpty) return null;
+
+    double? minLat, maxLat, minLng, maxLng;
+
+    for (var marker in markers) {
+      final lat = marker.position.latitude;
+      final lng = marker.position.longitude;
+
+      minLat = minLat == null ? lat : (lat < minLat ? lat : minLat);
+      maxLat = maxLat == null ? lat : (lat > maxLat ? lat : maxLat);
+      minLng = minLng == null ? lng : (lng < minLng ? lng : minLng);
+      maxLng = maxLng == null ? lng : (lng > maxLng ? lng : maxLng);
+    }
+
+    return LatLngBounds(
+      southwest: LatLng(minLat!, minLng!),
+      northeast: LatLng(maxLat!, maxLng!),
+    );
   }
 
   String _formatTime(DateTime? dateTime) {
@@ -147,22 +181,34 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               top: 16,
               right: 16,
-              child: FloatingActionButton(
-                mini: true,
-                onPressed: () async {
-                  await _loadData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Locations refreshed'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-                child: const Icon(Icons.refresh),
+              child: Column(
+                children: [
+                  FloatingActionButton(
+                    mini: true,
+                    heroTag: 'refresh',
+                    onPressed: () async {
+                      await _loadData();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Locations refreshed'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.refresh),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton(
+                    mini: true,
+                    heroTag: 'friends',
+                    onPressed: () => _showFriendsList(context, mapViewModel),
+                    child: const Icon(Icons.people),
+                  ),
+                ],
               ),
             ),
             Positioned(
-              bottom: 16,
+              bottom: 80,
               left: 16,
               right: 16,
               child: Card(
@@ -186,6 +232,86 @@ class _MapScreenState extends State<MapScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _showFriendsList(BuildContext context, MapViewModel mapViewModel) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Friends Locations',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (mapViewModel.friendsWithLocations.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text('No friends with location available'),
+                  ),
+                ),
+              ...mapViewModel.friendsWithLocations.map((friend) {
+                return ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.red,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  title: Text(friend.email),
+                  subtitle: Text(
+                    'Last updated: ${_formatTime(friend.location?.lastUpdated)}',
+                  ),
+                  trailing: const Icon(Icons.location_on),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToFriend(friend);
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _navigateToFriend(dynamic friend) {
+    if (friend.location == null || _mapController == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location not available for this friend'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(
+            friend.location!.latitude,
+            friend.location!.longitude,
+          ),
+          zoom: 15,
+        ),
+      ),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Showing ${friend.email}\'s location'),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 

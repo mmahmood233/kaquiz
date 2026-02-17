@@ -1,5 +1,6 @@
 const User = require('../models/UserModel');
 const FriendRequest = require('../models/FriendRequestModel');
+const db = require('../config/database');
 
 exports.searchUsers = async (req, res, next) => {
   try {
@@ -178,6 +179,12 @@ exports.deleteFriend = async (req, res, next) => {
     }
 
     await User.removeFriend(req.user.id, friendId);
+    
+    // Delete the friend request so they can send a new one later
+    const existingRequest = await FriendRequest.findByUsers(req.user.id, friendId);
+    if (existingRequest) {
+      await db.run('DELETE FROM friend_requests WHERE id = ?', [existingRequest.id]);
+    }
 
     res.status(200).json({
       success: true,
