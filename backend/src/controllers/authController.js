@@ -1,6 +1,8 @@
 const User = require('../models/UserModel');
 const { generateToken } = require('../utils/jwt');
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 exports.register = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -12,22 +14,37 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    const userExists = await User.findByEmail(email);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const userExists = await User.findByEmail(normalizedEmail);
 
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email'
+        message: 'An account already exists with this email'
       });
     }
 
-    const user = await User.create(email, password);
-
+    const user = await User.create(normalizedEmail, password);
     const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Account created successfully',
       data: {
         token,
         user: User.toSafeObject(user)
@@ -49,12 +66,13 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const user = await User.findByEmail(email);
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findByEmail(normalizedEmail);
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
@@ -63,7 +81,7 @@ exports.login = async (req, res, next) => {
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
@@ -90,7 +108,10 @@ exports.getMe = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        user: { ...User.toSafeObject(user), friends: friends.map(f => User.toSafeObject(f)) }
+        user: {
+          ...User.toSafeObject(user),
+          friends: friends.map(f => User.toSafeObject(f))
+        }
       }
     });
   } catch (error) {

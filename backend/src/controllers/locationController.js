@@ -11,20 +11,38 @@ exports.updateLocation = async (req, res, next) => {
       });
     }
 
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid coordinates'
+        message: 'Latitude and longitude must be valid numbers'
       });
     }
 
-    const user = await User.updateLocation(req.user.id, latitude, longitude);
+    if (lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude must be between -90 and 90'
+      });
+    }
+
+    if (lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Longitude must be between -180 and 180'
+      });
+    }
+
+    const user = await User.updateLocation(req.user.id, lat, lng);
+    const safeUser = User.toSafeObject(user);
 
     res.status(200).json({
       success: true,
       message: 'Location updated successfully',
       data: {
-        location: user.location
+        location: safeUser.location
       }
     });
   } catch (error) {
@@ -35,9 +53,11 @@ exports.updateLocation = async (req, res, next) => {
 exports.getFriendsLocations = async (req, res, next) => {
   try {
     const friends = await User.getFriends(req.user.id);
-    const friendsWithLocations = friends.filter(friend => 
-      friend.latitude !== null && 
-      friend.longitude !== null
+    const friendsWithLocations = friends.filter(friend =>
+      friend.latitude !== null &&
+      friend.longitude !== null &&
+      friend.latitude !== undefined &&
+      friend.longitude !== undefined
     );
 
     res.status(200).json({

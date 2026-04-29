@@ -13,12 +13,15 @@ class FriendViewModel extends ChangeNotifier {
   List<UserModel> _searchResults = [];
   List<FriendRequestModel> _pendingRequests = [];
   List<UserModel> _friends = [];
+  bool _isSearchLoading = false;
 
   FriendState get state => _state;
   String? get errorMessage => _errorMessage;
   List<UserModel> get searchResults => _searchResults;
   List<FriendRequestModel> get pendingRequests => _pendingRequests;
   List<UserModel> get friends => _friends;
+  bool get isSearchLoading => _isSearchLoading;
+  int get pendingRequestCount => _pendingRequests.length;
 
   Future<void> searchUsers(String email) async {
     if (email.isEmpty) {
@@ -27,29 +30,30 @@ class FriendViewModel extends ChangeNotifier {
       return;
     }
 
-    _state = FriendState.loading;
+    _isSearchLoading = true;
     notifyListeners();
 
     final response = await _friendRepository.searchUsers(email);
 
+    _isSearchLoading = false;
+
     if (response.success && response.data != null) {
       _searchResults = response.data!;
-      _state = FriendState.loaded;
     } else {
       _errorMessage = response.message;
-      _state = FriendState.error;
+      _searchResults = [];
     }
     notifyListeners();
   }
 
   Future<bool> sendFriendRequest(String receiverEmail) async {
     final response = await _friendRepository.sendFriendRequest(receiverEmail);
-    
+
     if (!response.success) {
       _errorMessage = response.message;
       notifyListeners();
     }
-    
+
     return response.success;
   }
 
@@ -65,21 +69,25 @@ class FriendViewModel extends ChangeNotifier {
     } else {
       _errorMessage = response.message;
       _state = FriendState.error;
+      _pendingRequests = [];
     }
     notifyListeners();
   }
 
   Future<bool> respondToRequest(String requestId, String action) async {
     final response = await _friendRepository.respondToRequest(requestId, action);
-    
+
     if (response.success) {
-      await loadPendingRequests();
-      await loadFriends();
+      // Refresh both lists
+      await Future.wait([
+        loadPendingRequests(),
+        loadFriends(),
+      ]);
     } else {
       _errorMessage = response.message;
       notifyListeners();
     }
-    
+
     return response.success;
   }
 
@@ -101,19 +109,25 @@ class FriendViewModel extends ChangeNotifier {
 
   Future<bool> deleteFriend(String friendId) async {
     final response = await _friendRepository.deleteFriend(friendId);
-    
+
     if (response.success) {
       await loadFriends();
     } else {
       _errorMessage = response.message;
       notifyListeners();
     }
-    
+
     return response.success;
   }
 
   void clearSearchResults() {
     _searchResults = [];
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _errorMessage = null;
     notifyListeners();
   }
 }

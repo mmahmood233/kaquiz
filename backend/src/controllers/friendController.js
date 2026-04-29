@@ -6,14 +6,14 @@ exports.searchUsers = async (req, res, next) => {
   try {
     const { email } = req.query;
 
-    if (!email) {
+    if (!email || email.trim().length < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email to search'
+        message: 'Please provide an email to search'
       });
     }
 
-    const users = await User.searchByEmail(email, req.user.id);
+    const users = await User.searchByEmail(email.trim(), req.user.id);
 
     res.status(200).json({
       success: true,
@@ -37,36 +37,42 @@ exports.sendFriendRequest = async (req, res, next) => {
       });
     }
 
-    if (receiverEmail === req.user.email) {
+    const normalizedEmail = receiverEmail.trim().toLowerCase();
+
+    if (normalizedEmail === req.user.email.toLowerCase()) {
       return res.status(400).json({
         success: false,
         message: 'Cannot send friend request to yourself'
       });
     }
 
-    const receiver = await User.findByEmail(receiverEmail);
+    const receiver = await User.findByEmail(normalizedEmail);
 
     if (!receiver) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'User not found with that email'
       });
     }
 
     if (await User.isFriend(req.user.id, receiver.id)) {
       return res.status(400).json({
         success: false,
-        message: 'Already friends with this user'
+        message: 'You are already friends with this user'
       });
     }
 
     const existingRequest = await FriendRequest.findByUsers(req.user.id, receiver.id);
 
     if (existingRequest) {
-      return res.status(400).json({
-        success: false,
-        message: 'Friend request already exists'
-      });
+      if (existingRequest.status === 'pending') {
+        return res.status(400).json({
+          success: false,
+          message: 'A friend request is already pending'
+        });
+      }
+      // Allow re-sending if previously denied
+      await db.run('DELETE FROM friend_requests WHERE id = ?', [existingRequest.id]);
     }
 
     const friendRequest = await FriendRequest.create(req.user.id, receiver.id);
@@ -119,10 +125,24 @@ exports.respondToRequest = async (req, res, next) => {
 
     const friendRequest = await FriendRequest.findById(requestId);
 
-    if (!friendRequest || friendRequest.receiver_id !== req.user.id || friendRequest.status !== 'pending') {
+    if (!friendRequest) {
       return res.status(404).json({
         success: false,
         message: 'Friend request not found'
+      });
+    }
+
+    if (friendRequest.receiver_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to respond to this request'
+      });
+    }
+
+    if (friendRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This friend request has already been responded to'
       });
     }
 
@@ -133,11 +153,15 @@ exports.respondToRequest = async (req, res, next) => {
       await FriendRequest.updateStatus(requestId, 'denied');
     }
 
+    const updatedRequest = await FriendRequest.findById(requestId);
+
     res.status(200).json({
       success: true,
-      message: `Friend request ${action}ed successfully`,
+      message: action === 'accept'
+        ? 'Friend request accepted'
+        : 'Friend request denied',
       data: {
-        friendRequest: FriendRequest.findById(requestId)
+        status: updatedRequest ? updatedRequest.status : action === 'accept' ? 'accepted' : 'denied'
       }
     });
   } catch (error) {
@@ -163,28 +187,29 @@ exports.getFriends = async (req, res, next) => {
 exports.deleteFriend = async (req, res, next) => {
   try {
     const { friendId } = req.params;
+    const friendIdInt = parseInt(friendId, 10);
 
-    if (!friendId) {
+    if (!friendId || isNaN(friendIdInt)) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide friendId'
+        message: 'Please provide a valid friendId'
       });
     }
 
-    if (!await User.isFriend(req.user.id, friendId)) {
+    if (!await User.isFriend(req.user.id, friendIdInt)) {
       return res.status(400).json({
         success: false,
-        message: 'User is not in your friends list'
+        message: 'This user is not in your friends list'
       });
     }
 
-    await User.removeFriend(req.user.id, friendId);
-    
-    // Delete the friend request so they can send a new one later
-    const existingRequest = await FriendRequest.findByUsers(req.user.id, friendId);
-    if (existingRequest) {
-      await db.run('DELETE FROM friend_requests WHERE id = ?', [existingRequest.id]);
-    }
+    await User.removeFriend(req.user.id, friendIdInt);
+
+    // Clean up all friend_requests between these two users in both directions
+    await db.run(
+      'DELETE FROM friend_requests WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
+      [req.user.id, friendIdInt, friendIdInt, req.user.id]
+    );
 
     res.status(200).json({
       success: true,

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../viewmodels/map_viewmodel.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../data/models/user_model.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -13,152 +15,114 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
-  Set<Marker> _markers = {};
+  bool _didFitBounds = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      context.read<MapViewModel>().loadFriendsLocations();
     });
   }
 
-  Future<void> _loadData() async {
-    await context.read<MapViewModel>().loadFriendsLocations();
-    _updateMarkers();
-  }
-
-  void _updateMarkers() {
-    final mapViewModel = context.read<MapViewModel>();
+  // Markers are computed fresh on every Consumer rebuild — no stale state
+  Set<Marker> _buildMarkers(MapViewModel vm) {
     final markers = <Marker>{};
 
-    if (mapViewModel.currentPosition != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId('my_location'),
-          position: LatLng(
-            mapViewModel.currentPosition!.latitude,
-            mapViewModel.currentPosition!.longitude,
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(title: 'You'),
+    if (vm.currentPosition != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('_me'),
+        position: LatLng(
+          vm.currentPosition!.latitude,
+          vm.currentPosition!.longitude,
         ),
-      );
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        infoWindow: const InfoWindow(
+          title: 'You',
+          snippet: 'Your current location',
+        ),
+        zIndexInt: 2,
+      ));
     }
 
-    for (var friend in mapViewModel.friendsWithLocations) {
-      if (friend.location != null) {
-        markers.add(
-          Marker(
-            markerId: MarkerId(friend.id),
-            position: LatLng(
-              friend.location!.latitude,
-              friend.location!.longitude,
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueRed,
-            ),
-            infoWindow: InfoWindow(
-              title: friend.email,
-              snippet: 'Last updated: ${_formatTime(friend.location!.lastUpdated)}',
-            ),
+    for (final friend in vm.friendsWithLocations) {
+      final loc = friend.location;
+      if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
+        markers.add(Marker(
+          markerId: MarkerId(friend.id),
+          position: LatLng(loc.latitude, loc.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueViolet),
+          infoWindow: InfoWindow(
+            title: friend.email.split('@').first,
+            snippet: _formatTime(loc.lastUpdated),
           ),
-        );
+          zIndexInt: 1,
+        ));
       }
     }
 
-    setState(() {
-      _markers = markers;
-    });
-    
-    _fitMapToMarkers();
+    return markers;
   }
 
-  void _fitMapToMarkers() {
-    if (_mapController == null || _markers.isEmpty) return;
+  void _fitBoundsToMarkers(Set<Marker> markers) {
+    if (_mapController == null || markers.isEmpty) return;
 
-    final bounds = _calculateBounds(_markers);
-    if (bounds != null) {
+    if (markers.length == 1) {
       _mapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 100),
+        CameraUpdate.newCameraPosition(CameraPosition(
+          target: markers.first.position,
+          zoom: AppConstants.defaultZoom,
+        )),
       );
+      return;
     }
-  }
-
-  LatLngBounds? _calculateBounds(Set<Marker> markers) {
-    if (markers.isEmpty) return null;
 
     double? minLat, maxLat, minLng, maxLng;
-
-    for (var marker in markers) {
-      final lat = marker.position.latitude;
-      final lng = marker.position.longitude;
-
+    for (final m in markers) {
+      final lat = m.position.latitude;
+      final lng = m.position.longitude;
       minLat = minLat == null ? lat : (lat < minLat ? lat : minLat);
       maxLat = maxLat == null ? lat : (lat > maxLat ? lat : maxLat);
       minLng = minLng == null ? lng : (lng < minLng ? lng : minLng);
       maxLng = maxLng == null ? lng : (lng > maxLng ? lng : maxLng);
     }
 
-    return LatLngBounds(
-      southwest: LatLng(minLat!, minLng!),
-      northeast: LatLng(maxLat!, maxLng!),
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat!, minLng!),
+          northeast: LatLng(maxLat!, maxLng!),
+        ),
+        80,
+      ),
     );
   }
 
-  String _formatTime(DateTime? dateTime) {
-    if (dateTime == null) return 'Unknown';
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return 'Unknown';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<MapViewModel>(
-      builder: (context, mapViewModel, child) {
-        if (mapViewModel.state == MapState.loading && _markers.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+      builder: (context, vm, _) {
+        if (vm.currentPosition == null) {
+          return _buildNoLocationView(vm);
         }
 
-        if (mapViewModel.currentPosition == null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.location_off,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Location not available',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                  onPressed: () {
-                    mapViewModel.initializeLocation();
-                  },
-                ),
-              ],
-            ),
-          );
+        final markers = _buildMarkers(vm);
+
+        // Fit bounds once after first friends load
+        if (!_didFitBounds && vm.state == MapState.loaded && markers.length > 1) {
+          _didFitBounds = true;
+          WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _fitBoundsToMarkers(markers));
         }
 
         return Stack(
@@ -166,151 +130,343 @@ class _MapScreenState extends State<MapScreen> {
             GoogleMap(
               initialCameraPosition: CameraPosition(
                 target: LatLng(
-                  mapViewModel.currentPosition!.latitude,
-                  mapViewModel.currentPosition!.longitude,
+                  vm.currentPosition!.latitude,
+                  vm.currentPosition!.longitude,
                 ),
                 zoom: AppConstants.defaultZoom,
               ),
-              markers: _markers,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
+              markers: markers,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: true,
               onMapCreated: (controller) {
                 _mapController = controller;
+                // Apply subtle map style
               },
             ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Column(
-                children: [
-                  FloatingActionButton(
-                    mini: true,
-                    heroTag: 'refresh',
-                    onPressed: () async {
-                      await _loadData();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Locations refreshed'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    child: const Icon(Icons.refresh),
-                  ),
-                  const SizedBox(height: 8),
-                  FloatingActionButton(
-                    mini: true,
-                    heroTag: 'friends',
-                    onPressed: () => _showFriendsList(context, mapViewModel),
-                    child: const Icon(Icons.people),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: 80,
-              left: 16,
-              right: 16,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Blue: You • Red: Friends (${mapViewModel.friendsWithLocations.length})',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            // Top status bar
+            _buildStatusBar(vm),
+            // Action buttons
+            _buildActionButtons(vm, markers),
+            // Bottom info card
+            _buildBottomInfoCard(vm),
           ],
         );
       },
     );
   }
 
-  void _showFriendsList(BuildContext context, MapViewModel mapViewModel) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
+  Widget _buildNoLocationView(MapViewModel vm) {
+    return Container(
+      color: AppTheme.background,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Friends Locations',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.location_off_rounded,
+                  size: 50,
+                  color: AppTheme.primary.withOpacity(0.5),
                 ),
               ),
-              const SizedBox(height: 16),
-              if (mapViewModel.friendsWithLocations.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text('No friends with location available'),
-                  ),
+              const SizedBox(height: 24),
+              const Text(
+                'Location Unavailable',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
                 ),
-              ...mapViewModel.friendsWithLocations.map((friend) {
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.red,
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(friend.email),
-                  subtitle: Text(
-                    'Last updated: ${_formatTime(friend.location?.lastUpdated)}',
-                  ),
-                  trailing: const Icon(Icons.location_on),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _navigateToFriend(friend);
-                  },
-                );
-              }).toList(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please enable location services to use the map and track your friends.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+              GradientButton(
+                label: 'Enable Location',
+                icon: Icons.my_location_rounded,
+                onPressed: () => vm.initializeLocation(),
+              ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  void _navigateToFriend(dynamic friend) {
-    if (friend.location == null || _mapController == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location not available for this friend'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    _mapController!.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: LatLng(
-            friend.location!.latitude,
-            friend.location!.longitude,
-          ),
-          zoom: 15,
         ),
       ),
     );
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Showing ${friend.email}\'s location'),
-        duration: const Duration(seconds: 2),
+  Widget _buildStatusBar(MapViewModel vm) {
+    final isTracking = vm.isInitialized;
+    return Positioned(
+      top: 12,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isTracking ? AppTheme.success : AppTheme.textHint,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isTracking ? 'Live tracking active' : 'Tracking inactive',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color:
+                    isTracking ? AppTheme.success : AppTheme.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            if (vm.state == MapState.loading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                ),
+              )
+            else
+              Text(
+                '${vm.friendsWithLocations.length} online',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(MapViewModel vm, Set<Marker> markers) {
+    return Positioned(
+      right: 16,
+      bottom: 130,
+      child: Column(
+        children: [
+          _mapFab(
+            icon: Icons.my_location_rounded,
+            heroTag: 'my_location',
+            onTap: () {
+              if (vm.currentPosition != null && _mapController != null) {
+                _mapController!.animateCamera(
+                  CameraUpdate.newCameraPosition(CameraPosition(
+                    target: LatLng(
+                      vm.currentPosition!.latitude,
+                      vm.currentPosition!.longitude,
+                    ),
+                    zoom: 15,
+                  )),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _mapFab(
+            icon: Icons.fit_screen_rounded,
+            heroTag: 'fit_bounds',
+            onTap: () => _fitBoundsToMarkers(markers),
+          ),
+          const SizedBox(height: 10),
+          _mapFab(
+            icon: Icons.refresh_rounded,
+            heroTag: 'refresh',
+            isPrimary: true,
+            onTap: () async {
+              _didFitBounds = false;
+              await vm.loadFriendsLocations();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Friend locations refreshed'),
+                    backgroundColor: AppTheme.success,
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 2),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapFab({
+    required IconData icon,
+    required String heroTag,
+    required VoidCallback onTap,
+    bool isPrimary = false,
+  }) {
+    return Material(
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(14),
+      color: isPrimary ? AppTheme.primary : AppTheme.surface,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 22,
+            color: isPrimary ? Colors.white : AppTheme.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomInfoCard(MapViewModel vm) {
+    return Positioned(
+      bottom: 16,
+      left: 16,
+      right: 16,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (vm.friendsWithLocations.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.people_outline_rounded,
+                        color: AppTheme.textHint, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'No friends with location yet',
+                      style: TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  itemCount: vm.friendsWithLocations.length,
+                  itemBuilder: (context, i) =>
+                      _friendChip(vm.friendsWithLocations[i]),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _friendChip(UserModel friend) {
+    final loc = friend.location;
+    return GestureDetector(
+      onTap: () {
+        if (loc != null && _mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(CameraPosition(
+              target: LatLng(loc.latitude, loc.longitude),
+              zoom: 15,
+            )),
+          );
+        }
+      },
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            UserAvatar(email: friend.email, radius: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    friend.email.split('@').first,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatTime(loc?.lastUpdated),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
