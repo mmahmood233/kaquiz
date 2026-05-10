@@ -54,8 +54,9 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
 
     setState(() => _sendingEmails.add(user.email));
 
+    // Send invite by user ID (swagger: POST /invites/{user_id})
     final success =
-        await context.read<FriendViewModel>().sendFriendRequest(user.email);
+        await context.read<FriendViewModel>().sendFriendRequest(user.id);
 
     if (!mounted) return;
 

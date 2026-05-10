@@ -6,12 +6,13 @@ import '../../data/models/friend_request_model.dart';
 enum FriendState { initial, loading, loaded, error }
 
 class FriendViewModel extends ChangeNotifier {
-  final FriendRepository _friendRepository = FriendRepository();
+  final FriendRepository _repo = FriendRepository();
 
   FriendState _state = FriendState.initial;
   String? _errorMessage;
   List<UserModel> _searchResults = [];
   List<FriendRequestModel> _pendingRequests = [];
+  List<FriendRequestModel> _outgoingRequests = [];
   List<UserModel> _friends = [];
   bool _isSearchLoading = false;
 
@@ -19,6 +20,7 @@ class FriendViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<UserModel> get searchResults => _searchResults;
   List<FriendRequestModel> get pendingRequests => _pendingRequests;
+  List<FriendRequestModel> get outgoingRequests => _outgoingRequests;
   List<UserModel> get friends => _friends;
   bool get isSearchLoading => _isSearchLoading;
   int get pendingRequestCount => _pendingRequests.length;
@@ -29,14 +31,11 @@ class FriendViewModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     _isSearchLoading = true;
     notifyListeners();
 
-    final response = await _friendRepository.searchUsers(email);
-
+    final response = await _repo.searchUsers(email);
     _isSearchLoading = false;
-
     if (response.success && response.data != null) {
       _searchResults = response.data!;
     } else {
@@ -46,14 +45,13 @@ class FriendViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> sendFriendRequest(String receiverEmail) async {
-    final response = await _friendRepository.sendFriendRequest(receiverEmail);
-
+  // Sends invite using user's ID (from search result)
+  Future<bool> sendFriendRequest(String receiverUserId) async {
+    final response = await _repo.sendFriendRequest(receiverUserId);
     if (!response.success) {
       _errorMessage = response.message;
       notifyListeners();
     }
-
     return response.success;
   }
 
@@ -61,33 +59,29 @@ class FriendViewModel extends ChangeNotifier {
     _state = FriendState.loading;
     notifyListeners();
 
-    final response = await _friendRepository.getPendingRequests();
-
+    final response = await _repo.getPendingRequests();
     if (response.success && response.data != null) {
-      _pendingRequests = response.data!;
+      _pendingRequests = response.data!.where((r) => r.isIncoming).toList();
+      _outgoingRequests = response.data!.where((r) => !r.isIncoming).toList();
       _state = FriendState.loaded;
     } else {
       _errorMessage = response.message;
       _state = FriendState.error;
       _pendingRequests = [];
+      _outgoingRequests = [];
     }
     notifyListeners();
   }
 
-  Future<bool> respondToRequest(String requestId, String action) async {
-    final response = await _friendRepository.respondToRequest(requestId, action);
-
+  // action: 'accept' | 'deny'  — senderUserId is the ID of the person who sent the invite
+  Future<bool> respondToRequest(String senderUserId, String action) async {
+    final response = await _repo.respondToRequest(senderUserId, action);
     if (response.success) {
-      // Refresh both lists
-      await Future.wait([
-        loadPendingRequests(),
-        loadFriends(),
-      ]);
+      await Future.wait([loadPendingRequests(), loadFriends()]);
     } else {
       _errorMessage = response.message;
       notifyListeners();
     }
-
     return response.success;
   }
 
@@ -95,8 +89,7 @@ class FriendViewModel extends ChangeNotifier {
     _state = FriendState.loading;
     notifyListeners();
 
-    final response = await _friendRepository.getFriends();
-
+    final response = await _repo.getFriends();
     if (response.success && response.data != null) {
       _friends = response.data!;
       _state = FriendState.loaded;
@@ -108,25 +101,18 @@ class FriendViewModel extends ChangeNotifier {
   }
 
   Future<bool> deleteFriend(String friendId) async {
-    final response = await _friendRepository.deleteFriend(friendId);
-
+    final response = await _repo.deleteFriend(friendId);
     if (response.success) {
       await loadFriends();
     } else {
       _errorMessage = response.message;
       notifyListeners();
     }
-
     return response.success;
   }
 
   void clearSearchResults() {
     _searchResults = [];
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  void clearError() {
     _errorMessage = null;
     notifyListeners();
   }

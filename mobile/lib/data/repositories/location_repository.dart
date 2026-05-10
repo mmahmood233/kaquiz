@@ -5,6 +5,8 @@ import '../../core/utils/secure_storage.dart';
 import '../models/user_model.dart';
 import '../models/api_response.dart';
 
+const _timeout = Duration(seconds: 8);
+
 class LocationRepository {
   Future<Map<String, String>> _getHeaders() async {
     final token = await SecureStorage.getToken();
@@ -14,71 +16,50 @@ class LocationRepository {
     };
   }
 
+  // POST /api/locations  (swagger: POST /locations)
   Future<ApiResponse<void>> updateLocation(
-    double latitude,
-    double longitude,
-  ) async {
+      double latitude, double longitude) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.updateLocation}'),
-        headers: headers,
-        body: jsonEncode({
-          'latitude': latitude,
-          'longitude': longitude,
-        }),
-      );
-
-      final jsonResponse = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return ApiResponse(
-          success: true,
-          message: jsonResponse['message'],
-        );
-      } else {
-        return ApiResponse(
-          success: false,
-          message: jsonResponse['message'] ?? 'Failed to update location',
-        );
-      }
-    } catch (e) {
-      return ApiResponse(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-      );
+      await http
+          .post(
+            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.updateLocation}'),
+            headers: headers,
+            body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
+          )
+          .timeout(_timeout);
+      return ApiResponse(success: true);
+    } catch (_) {
+      return ApiResponse(success: false, message: 'Location update failed');
     }
   }
 
+  // GET /api/friends — swagger GET /friends returns locations embedded
   Future<ApiResponse<List<UserModel>>> getFriendsLocations() async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.getFriendsLocations}'),
-        headers: headers,
-      );
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.getFriends}'),
+            headers: headers,
+          )
+          .timeout(_timeout);
 
-      final jsonResponse = jsonDecode(response.body);
-
+      final dynamic json = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        final List<dynamic> friendsJson = jsonResponse['data']['friends'];
-        final friends = friendsJson.map((json) => UserModel.fromJson(json)).toList();
-
-        return ApiResponse(
-          success: true,
-          data: friends,
-        );
-      } else {
-        return ApiResponse(
-          success: false,
-          message: jsonResponse['message'] ?? 'Failed to get locations',
-        );
+        final List<dynamic> friendsJson =
+            json is List ? json : (json['data']?['friends'] ?? []);
+        final withLocation = friendsJson
+            .map((j) => UserModel.fromJson(j))
+            .where((u) =>
+                u.location != null &&
+                (u.location!.latitude != 0.0 || u.location!.longitude != 0.0))
+            .toList();
+        return ApiResponse(success: true, data: withLocation);
       }
-    } catch (e) {
-      return ApiResponse(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-      );
+      return ApiResponse(success: false, message: 'Failed to get locations');
+    } catch (_) {
+      return ApiResponse(success: false, message: 'Network error');
     }
   }
 }
