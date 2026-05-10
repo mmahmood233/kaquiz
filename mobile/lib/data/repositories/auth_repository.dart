@@ -123,6 +123,36 @@ class AuthRepository {
     }
   }
 
+  Future<ApiResponse<UserModel>> getMe() async {
+    try {
+      final token = await SecureStorage.getToken();
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.getMe}'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(_timeout);
+
+      final jsonResponse = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final userJson = jsonResponse['data']['user'];
+        return ApiResponse(
+          success: true,
+          data: UserModel.fromJson(userJson),
+        );
+      }
+      return ApiResponse(
+        success: false,
+        message: jsonResponse['message'] ?? 'Session expired',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _friendlyError(e));
+    }
+  }
+
   Future<void> logout() async {
     await SecureStorage.clearAll();
   }

@@ -38,18 +38,21 @@ class LocationService {
     if (_isTracking) return;
 
     _isTracking = true;
+    _sendCurrentLocation();
     _locationTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (timer) async {
-        final position = await getCurrentLocation();
-        if (position != null) {
-          await _locationRepository.updateLocation(
-            position.latitude,
-            position.longitude,
-          );
-        }
-      },
+      (_) => _sendCurrentLocation(),
     );
+  }
+
+  Future<void> _sendCurrentLocation() async {
+    final position = await getCurrentLocation();
+    if (position != null) {
+      await _locationRepository.updateLocation(
+        position.latitude,
+        position.longitude,
+      );
+    }
   }
 
   void stopLocationTracking() {

@@ -42,8 +42,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (success) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, animation, __) => const HomeScreen(),
-          transitionsBuilder: (_, animation, __, child) =>
+          pageBuilder: (_, animation, _) => const HomeScreen(),
+          transitionsBuilder: (_, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
           transitionDuration: const Duration(milliseconds: 400),
         ),
@@ -119,10 +119,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: Colors.white.withOpacity(0.35), width: 2),
+                        color: Colors.white.withValues(alpha: 0.35), width: 2),
                   ),
                   child: const Icon(Icons.person_add_alt_1_rounded,
                       size: 38, color: Colors.white),
@@ -141,7 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   'Join to connect with friends',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 15,
                   ),
                 ),

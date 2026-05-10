@@ -217,7 +217,7 @@ class GradientButton extends StatelessWidget {
           boxShadow: onPressed != null && !isLoading
               ? [
                   BoxShadow(
-                    color: AppTheme.primary.withOpacity(0.3),
+                    color: AppTheme.primary.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   )
@@ -282,7 +282,7 @@ class UserAvatar extends StatelessWidget {
     final bg = color ?? AppTheme.avatarColorForEmail(email);
     return CircleAvatar(
       radius: radius,
-      backgroundColor: bg.withOpacity(0.15),
+      backgroundColor: bg.withValues(alpha: 0.15),
       child: Text(
         email.isNotEmpty ? email[0].toUpperCase() : '?',
         style: TextStyle(

@@ -129,8 +129,8 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primary.withOpacity(0.1),
-                    AppTheme.secondary.withOpacity(0.1),
+                    AppTheme.primary.withValues(alpha: 0.1),
+                    AppTheme.secondary.withValues(alpha: 0.1),
                   ],
                 ),
                 shape: BoxShape.circle,
@@ -138,7 +138,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
               child: Icon(
                 Icons.people_outline_rounded,
                 size: 50,
-                color: AppTheme.primary.withOpacity(0.5),
+                color: AppTheme.primary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 24),
@@ -187,7 +187,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -276,7 +276,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppTheme.error.withOpacity(0.08),
+                  color: AppTheme.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.person_remove_rounded,

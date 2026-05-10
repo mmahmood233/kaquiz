@@ -170,13 +170,13 @@ class _MapScreenState extends State<MapScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.location_off_rounded,
                   size: 50,
-                  color: AppTheme.primary.withOpacity(0.5),
+                  color: AppTheme.primary.withValues(alpha: 0.5),
                 ),
               ),
               const SizedBox(height: 24),
@@ -224,7 +224,7 @@ class _MapScreenState extends State<MapScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 2),
             )
@@ -340,7 +340,7 @@ class _MapScreenState extends State<MapScreen> {
   }) {
     return Material(
       elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(14),
       color: isPrimary ? AppTheme.primary : AppTheme.surface,
       child: InkWell(
@@ -371,7 +371,7 @@ class _MapScreenState extends State<MapScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),

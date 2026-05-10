@@ -22,7 +22,33 @@ exports.updateLocation = async (req, res, next) => {
 
     await User.updateLocation(req.user.id, lat, lng);
 
-    res.status(200).json({ success: true, message: 'Location updated successfully' });
+    res.status(200).json({
+      success: true,
+      message: 'Location updated successfully',
+      data: {
+        location: {
+          latitude: lat,
+          longitude: lng,
+          lastUpdated: new Date().toISOString()
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/location/friends — Swagger-compatible friend locations endpoint
+exports.getFriendsLocations = async (req, res, next) => {
+  try {
+    const friends = await User.getFriends(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        friends: friends.map(friend => User.toSafeObject(friend))
+      }
+    });
   } catch (error) {
     next(error);
   }

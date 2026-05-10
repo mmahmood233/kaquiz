@@ -82,14 +82,14 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                 fontWeight: FontWeight.w600, fontSize: 13),
             tabs: [
               Consumer<FriendViewModel>(
-                builder: (_, vm, __) => Tab(
+                builder: (_, vm, _) => Tab(
                   text: vm.pendingRequests.isEmpty
                       ? 'Received'
                       : 'Received (${vm.pendingRequests.length})',
                 ),
               ),
               Consumer<FriendViewModel>(
-                builder: (_, vm, __) => Tab(
+                builder: (_, vm, _) => Tab(
                   text: vm.outgoingRequests.isEmpty
                       ? 'Sent'
                       : 'Sent (${vm.outgoingRequests.length})',
@@ -180,7 +180,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2))
         ],
@@ -219,7 +219,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.warning.withOpacity(0.12),
+                color: AppTheme.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text('Pending',
@@ -252,7 +252,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.error,
                     side:
-                        BorderSide(color: AppTheme.error.withOpacity(0.5)),
+                        BorderSide(color: AppTheme.error.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -317,7 +317,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppTheme.info.withOpacity(0.1),
+              color: AppTheme.info.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -349,13 +349,13 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
             height: 100,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [
-                AppTheme.primary.withOpacity(0.1),
-                AppTheme.secondary.withOpacity(0.1)
+                AppTheme.primary.withValues(alpha: 0.1),
+                AppTheme.secondary.withValues(alpha: 0.1)
               ]),
               shape: BoxShape.circle,
             ),
             child: Icon(icon,
-                size: 50, color: AppTheme.primary.withOpacity(0.5)),
+                size: 50, color: AppTheme.primary.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
           Text(title,

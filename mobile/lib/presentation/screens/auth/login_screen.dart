@@ -40,8 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, animation, __) => const HomeScreen(),
-          transitionsBuilder: (_, animation, __, child) =>
+          pageBuilder: (_, animation, _) => const HomeScreen(),
+          transitionsBuilder: (_, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
           transitionDuration: const Duration(milliseconds: 400),
         ),
@@ -102,9 +102,9 @@ class _LoginScreenState extends State<LoginScreen> {
             width: 90,
             height: 90,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: Colors.white.withOpacity(0.35), width: 2),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
             ),
             child: const Icon(
               Icons.location_on_rounded,
@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             'Welcome back',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 15,
               fontWeight: FontWeight.w400,
             ),

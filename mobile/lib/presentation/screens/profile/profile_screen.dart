@@ -103,8 +103,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           PageRouteBuilder(
-            pageBuilder: (_, animation, __) => const LoginScreen(),
-            transitionsBuilder: (_, animation, __, child) =>
+            pageBuilder: (_, animation, _) => const LoginScreen(),
+            transitionsBuilder: (_, animation, _, child) =>
                 FadeTransition(opacity: animation, child: child),
             transitionDuration: const Duration(milliseconds: 400),
           ),
@@ -320,7 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AppTheme.error.withOpacity(0.1),
+              color: AppTheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.logout_rounded,
@@ -335,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           trailing: Icon(Icons.chevron_right_rounded,
-              color: AppTheme.error.withOpacity(0.5)),
+              color: AppTheme.error.withValues(alpha: 0.5)),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),

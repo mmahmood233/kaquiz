@@ -102,11 +102,11 @@ class _SplashScreenState extends State<SplashScreen>
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, animation, __) =>
+        pageBuilder: (_, animation, _) =>
             authViewModel.state == AuthState.authenticated
                 ? const HomeScreen()
                 : const LoginScreen(),
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
@@ -132,10 +132,10 @@ class _SplashScreenState extends State<SplashScreen>
                       width: 110,
                       height: 110,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(32),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.4),
+                          color: Colors.white.withValues(alpha: 0.4),
                           width: 2,
                         ),
                       ),
@@ -167,7 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Text(
                           'Stay connected with your world',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0.2,
@@ -186,7 +186,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor:
-                          AlwaysStoppedAnimation(Colors.white.withOpacity(0.7)),
+                          AlwaysStoppedAnimation(Colors.white.withValues(alpha: 0.7)),
                     ),
                   ),
                 ),

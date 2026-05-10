@@ -109,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         Consumer<AuthViewModel>(
-          builder: (_, authVm, __) => IconButton(
+          builder: (_, authVm, _) => IconButton(
             icon: authVm.currentUser != null
                 ? UserAvatar(
                     email: authVm.currentUser!.email, radius: 18)
@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary.withOpacity(0.12)
+                    ? AppTheme.primary.withValues(alpha: 0.12)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppTheme.primary.withOpacity(0.12)
+                        ? AppTheme.primary.withValues(alpha: 0.12)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                   ),

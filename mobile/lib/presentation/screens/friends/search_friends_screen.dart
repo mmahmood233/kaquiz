@@ -204,8 +204,8 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primary.withOpacity(0.1),
-                    AppTheme.secondary.withOpacity(0.1),
+                    AppTheme.primary.withValues(alpha: 0.1),
+                    AppTheme.secondary.withValues(alpha: 0.1),
                   ],
                 ),
                 shape: BoxShape.circle,
@@ -213,7 +213,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
               child: Icon(
                 Icons.search_rounded,
                 size: 40,
-                color: AppTheme.primary.withOpacity(0.5),
+                color: AppTheme.primary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 20),
@@ -286,7 +286,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -337,10 +337,10 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.success.withOpacity(0.1),
+          color: AppTheme.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: AppTheme.success.withOpacity(0.3)),
+              color: AppTheme.success.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
