@@ -61,6 +61,24 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile(String name) async {
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _authRepository.updateProfile(name);
+    if (response.success && response.data != null) {
+      final userData = response.data!['user'] ?? response.data;
+      if (userData != null) {
+        _currentUser = UserModel.fromJson(userData as Map<String, dynamic>);
+      }
+      notifyListeners();
+      return true;
+    }
+    _errorMessage = response.message ?? 'Update failed';
+    notifyListeners();
+    return false;
+  }
+
   Future<void> logout() async {
     await _authRepository.logout();
     _currentUser = null;

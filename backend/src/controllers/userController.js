@@ -12,10 +12,11 @@ exports.updateUser = async (req, res, next) => {
     const user = await User.updateProfile(req.user.id, { name, avatar });
 
     res.status(200).json({
-      id: user.id,
-      name: user.name || user.email.split('@')[0],
-      avatar: user.avatar || null,
-      email: user.email
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: User.toSafeObject(user)
+      }
     });
   } catch (error) {
     next(error);

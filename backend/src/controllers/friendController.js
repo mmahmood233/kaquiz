@@ -13,8 +13,8 @@ exports.getFriends = async (req, res, next) => {
         avatar: f.avatar || null,
         email: f.email,
         location: {
-          latitude: f.latitude ? String(f.latitude) : null,
-          longitude: f.longitude ? String(f.longitude) : null,
+          latitude: f.latitude ?? null,
+          longitude: f.longitude ?? null,
           timestamp: f.location_updated_at || null
         }
       }))

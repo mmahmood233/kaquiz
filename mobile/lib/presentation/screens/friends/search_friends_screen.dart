@@ -303,7 +303,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user.email,
+                    user.displayName,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -313,11 +313,12 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Friend Finder member',
+                    user.email,
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textHint,
+                      color: AppTheme.textSecondary,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

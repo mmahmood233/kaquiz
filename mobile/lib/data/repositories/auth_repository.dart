@@ -92,6 +92,37 @@ class AuthRepository {
     }
   }
 
+  Future<ApiResponse<Map<String, dynamic>>> updateProfile(String name) async {
+    try {
+      final token = await SecureStorage.getToken();
+      final response = await http
+          .put(
+            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.updateUser}'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'name': name}),
+          )
+          .timeout(_timeout);
+
+      final jsonResponse = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return ApiResponse(
+          success: true,
+          message: jsonResponse['message'],
+          data: jsonResponse['data'],
+        );
+      }
+      return ApiResponse(
+        success: false,
+        message: jsonResponse['message'] ?? 'Update failed',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _friendlyError(e));
+    }
+  }
+
   Future<void> logout() async {
     await SecureStorage.clearAll();
   }

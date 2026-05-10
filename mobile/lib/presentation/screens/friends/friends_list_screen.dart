@@ -22,6 +22,9 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
 
   Future<void> _handleDeleteFriend(
       BuildContext context, String friendId, String friendEmail) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final vm = context.read<FriendViewModel>();
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -67,8 +70,6 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final messenger = ScaffoldMessenger.of(context);
-      final vm = context.read<FriendViewModel>();
       final success = await vm.deleteFriend(friendId);
       if (mounted) {
         messenger.showSnackBar(
@@ -222,11 +223,20 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    friend.email,
+                    friend.displayName,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    friend.email,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

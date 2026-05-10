@@ -7,7 +7,7 @@ import '../friends/friends_list_screen.dart';
 import '../friends/friend_requests_screen.dart';
 import '../friends/search_friends_screen.dart';
 import '../map/map_screen.dart';
-import '../auth/login_screen.dart';
+import '../profile/profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,45 +40,10 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<FriendViewModel>().loadPendingRequests();
   }
 
-  Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
-
-    if (confirmed == true && mounted) {
-      context.read<MapViewModel>().stopTracking();
-      await context.read<AuthViewModel>().logout();
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, animation, __) => const LoginScreen(),
-            transitionsBuilder: (_, animation, __, child) =>
-                FadeTransition(opacity: animation, child: child),
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -143,21 +108,24 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (_) => const SearchFriendsScreen()),
             ),
           ),
-        IconButton(
-          icon: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceVariant,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.logout_rounded,
-              color: AppTheme.textSecondary,
-              size: 20,
-            ),
+        Consumer<AuthViewModel>(
+          builder: (_, authVm, __) => IconButton(
+            icon: authVm.currentUser != null
+                ? UserAvatar(
+                    email: authVm.currentUser!.email, radius: 18)
+                : Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.person_outline_rounded,
+                        color: AppTheme.textSecondary, size: 20),
+                  ),
+            onPressed: _openProfile,
+            tooltip: 'Profile',
           ),
-          onPressed: _handleLogout,
         ),
         const SizedBox(width: 8),
       ],
