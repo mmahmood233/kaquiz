@@ -1,11 +1,18 @@
+// UserModel contains database helper functions for users and friendships.
 const User = require('../models/UserModel');
+
+// db is the async SQLite helper used for custom invite queries.
 const db = require('../config/database');
 
-// GET /api/friends — all friends with last known location
+// GET /api/friends
+// Return all friends for the logged-in user, including their last known location.
 exports.getFriends = async (req, res, next) => {
   try {
+    // req.user.id comes from the auth middleware.
+    // It tells us which user's friends to load.
     const friends = await User.getFriends(req.user.id);
 
+    // Convert database rows into the shape the mobile app expects.
     const data = friends.map(f => ({
         id: f.id,
         _id: String(f.id),
@@ -21,6 +28,7 @@ exports.getFriends = async (req, res, next) => {
         createdAt: f.created_at
       }));
 
+    // Send the friends list back to the app.
     res.status(200).json({
       success: true,
       data: {
@@ -28,26 +36,32 @@ exports.getFriends = async (req, res, next) => {
       }
     });
   } catch (error) {
+    // Let the global error handler deal with unexpected errors.
     next(error);
   }
 };
 
 // DELETE /api/friends/:id
+// Remove a friend from the logged-in user's friend list.
 exports.deleteFriend = async (req, res, next) => {
   try {
+    // The friend ID comes from the URL.
     const friendId = parseInt(req.params.id, 10);
 
+    // Reject invalid IDs before touching the database.
     if (isNaN(friendId)) {
       return res.status(400).json({ success: false, message: 'Invalid friend ID' });
     }
 
+    // Make sure this user is actually friends with that ID.
     if (!await User.isFriend(req.user.id, friendId)) {
       return res.status(404).json({ success: false, message: 'Friend not found' });
     }
 
+    // Remove the friendship in both directions.
     await User.removeFriend(req.user.id, friendId);
 
-    // Clean up invites in both directions
+    // Delete old invites between these two users so they can request again later.
     await db.run(
       'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [req.user.id, friendId, friendId, req.user.id]
@@ -59,17 +73,22 @@ exports.deleteFriend = async (req, res, next) => {
   }
 };
 
-// GET /api/friends/search?email=... (extra — required by project brief)
+// GET /api/friends/search?email=...
+// Search for users by email so the logged-in user can add friends.
 exports.searchUsers = async (req, res, next) => {
   try {
+    // Read the email search text from the query string.
     const { email } = req.query;
 
+    // Search text is required.
     if (!email || email.trim().length < 1) {
       return res.status(400).json({ success: false, message: 'Please provide email to search' });
     }
 
+    // Search users but exclude the logged-in user from results.
     const users = await User.searchByEmail(email.trim(), req.user.id);
 
+    // Return safe public user data only.
     res.status(200).json({
       success: true,
       data: {
@@ -82,46 +101,60 @@ exports.searchUsers = async (req, res, next) => {
 };
 
 // POST /api/friends/request — Swagger-compatible request by email
+// Send a friend request using the receiver's email address.
 exports.sendFriendRequest = async (req, res, next) => {
   try {
+    // The frontend sends the email of the user it wants to add.
     const { receiverEmail } = req.body;
 
+    // Receiver email is required.
     if (!receiverEmail || receiverEmail.trim().length < 1) {
       return res.status(400).json({ success: false, message: 'Please provide receiverEmail' });
     }
 
+    // Find the user who should receive the request.
     const receiver = await User.findByEmail(receiverEmail.trim().toLowerCase());
     if (!receiver) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // A user cannot send a friend request to themselves.
     if (req.user.id === receiver.id) {
       return res.status(400).json({ success: false, message: 'Cannot send request to yourself' });
     }
 
+    // If they are already friends, another request is not allowed.
     if (await User.isFriend(req.user.id, receiver.id)) {
       return res.status(400).json({ success: false, message: 'Already friends with this user' });
     }
 
+    // Check for an existing invite in either direction.
+    // This prevents duplicate pending friend requests.
     const existing = await db.get(
       'SELECT * FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [req.user.id, receiver.id, receiver.id, req.user.id]
     );
 
     if (existing) {
+      // Pending means someone already sent a request, so stop here.
       if (existing.status === 'pending') {
         return res.status(400).json({ success: false, message: 'A friend request is already pending' });
       }
+
+      // If the old invite was accepted or denied, delete it so a fresh request can be created.
       await db.run('DELETE FROM invites WHERE id = ?', [existing.id]);
     }
 
+    // Create the new pending friend request.
     const result = await db.run(
       'INSERT INTO invites (sender_id, receiver_id) VALUES (?, ?)',
       [req.user.id, receiver.id]
     );
 
+    // Load the created invite so we can return it in the response.
     const friendRequest = await db.get('SELECT * FROM invites WHERE id = ?', [result.lastID]);
 
+    // Return the created request in the Swagger-friendly format.
     res.status(201).json({
       success: true,
       message: 'Friend request sent successfully',
@@ -137,13 +170,16 @@ exports.sendFriendRequest = async (req, res, next) => {
       }
     });
   } catch (error) {
+    // Send unexpected errors to the global error handler.
     next(error);
   }
 };
 
 // GET /api/friends/requests — Swagger-compatible incoming pending requests
+// Return pending friend requests sent to the logged-in user.
 exports.getPendingFriendRequests = async (req, res, next) => {
   try {
+    // Join invites with users so each request includes sender profile data.
     const requests = await db.all(`
       SELECT i.id, i.status, i.created_at,
              s.id as sender_id, s.name as sender_name, s.avatar as sender_avatar, s.email as sender_email,
@@ -155,6 +191,7 @@ exports.getPendingFriendRequests = async (req, res, next) => {
       ORDER BY i.created_at DESC
     `, [req.user.id]);
 
+    // Format requests for the mobile app and Swagger contract.
     res.status(200).json({
       success: true,
       data: {
@@ -178,38 +215,49 @@ exports.getPendingFriendRequests = async (req, res, next) => {
       }
     });
   } catch (error) {
+    // Send unexpected errors to the global error handler.
     next(error);
   }
 };
 
 // POST /api/friends/respond — Swagger-compatible accept/deny by request ID
+// Accept or deny a pending friend request.
 exports.respondToFriendRequest = async (req, res, next) => {
   try {
+    // The app sends the request ID and the action to take.
     const { requestId, action } = req.body;
+
+    // Accept both "deny" and "decline" so older clients still work.
     const normalizedAction = action === 'decline' ? 'deny' : action;
 
+    // requestId and a valid action are required.
     if (!requestId || !['accept', 'deny'].includes(normalizedAction)) {
       return res.status(400).json({ success: false, message: 'Please provide requestId and action accept or deny' });
     }
 
+    // Only the receiver of a pending request is allowed to respond to it.
     const invite = await db.get(
       'SELECT * FROM invites WHERE id = ? AND receiver_id = ? AND status = ?',
       [requestId, req.user.id, 'pending']
     );
 
+    // If no matching pending invite exists, return not found.
     if (!invite) {
       return res.status(404).json({ success: false, message: 'Friend request not found' });
     }
 
+    // Accepting creates the friendship in both directions.
     if (normalizedAction === 'accept') {
       await User.addFriend(req.user.id, invite.sender_id);
       await db.run('UPDATE invites SET status = ? WHERE id = ?', ['accepted', invite.id]);
       return res.status(200).json({ success: true, message: 'Friend request accepted successfully' });
     }
 
+    // Denying keeps the users separate and marks the request as denied.
     await db.run('UPDATE invites SET status = ? WHERE id = ?', ['denied', invite.id]);
     res.status(200).json({ success: true, message: 'Friend request denied successfully' });
   } catch (error) {
+    // Send unexpected errors to the global error handler.
     next(error);
   }
 };

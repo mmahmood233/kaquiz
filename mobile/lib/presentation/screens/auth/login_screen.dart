@@ -1,3 +1,4 @@
+// Login screen UI and form validation.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -5,6 +6,7 @@ import 'register_screen.dart';
 import '../home/home_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
+// Screen where existing users sign in with email and password.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Form key and text controllers read/validate user input.
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -20,11 +23,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    // Dispose controllers to prevent memory leaks.
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  // Validate form, call backend login, and navigate on success.
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -38,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      // Replace login screen with home after successful login.
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, animation, _) => const HomeScreen(),
@@ -47,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
+      // Show backend or network error message.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authViewModel.errorMessage ?? 'Login failed'),
@@ -58,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Main login layout.
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -91,6 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Top branded header.
   Widget _buildHeader() {
     return Container(
       height: 280,
@@ -136,6 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Email input with basic validation.
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -157,6 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Password input with show/hide button.
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -184,6 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Submit button that shows loading from AuthViewModel.
   Widget _buildLoginButton() {
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, _) {
@@ -197,6 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Link to account creation screen.
   Widget _buildRegisterLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

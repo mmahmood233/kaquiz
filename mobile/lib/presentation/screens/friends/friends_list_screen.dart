@@ -1,9 +1,11 @@
+// Friends list screen.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/friend_viewmodel.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_model.dart';
 
+// Shows the user's current friends and lets them remove friends.
 class FriendsListScreen extends StatefulWidget {
   const FriendsListScreen({super.key});
 
@@ -15,11 +17,14 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Load friends after the screen appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FriendViewModel>().loadFriends();
     });
   }
 
+  // Confirm and delete a friend.
   Future<void> _handleDeleteFriend(
       BuildContext context, String friendId, String friendEmail) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -88,6 +93,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild when friend list state changes.
     return Consumer<FriendViewModel>(
       builder: (context, vm, _) {
         if (vm.state == FriendState.loading && vm.friends.isEmpty) {
@@ -116,6 +122,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
   }
 
+  // Empty state shown when the user has no friends.
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -174,6 +181,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
   }
 
+  // One friend row with location status and delete button.
   Widget _buildFriendCard(BuildContext context, UserModel friend) {
     final hasLocation = friend.location != null &&
         (friend.location!.latitude != 0.0 ||

@@ -1,3 +1,4 @@
+// Map screen that shows current user and friends on Google Maps.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -6,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_model.dart';
 
+// Displays friend locations on a map.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -14,18 +16,23 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // Google Maps controller is used to move/zoom the map.
   GoogleMapController? _mapController;
+
+  // Prevents auto-fitting markers over and over.
   bool _didFitBounds = false;
 
   @override
   void initState() {
     super.initState();
+
+    // Load latest friend locations when the map appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MapViewModel>().loadFriendsLocations();
     });
   }
 
-  // Markers are computed fresh on every Consumer rebuild — no stale state
+  // Build markers for current user and friends.
   Set<Marker> _buildMarkers(MapViewModel vm) {
     final markers = <Marker>{};
 
@@ -65,6 +72,7 @@ class _MapScreenState extends State<MapScreen> {
     return markers;
   }
 
+  // Move the map camera so all markers are visible.
   void _fitBoundsToMarkers(Set<Marker> markers) {
     if (_mapController == null || markers.isEmpty) return;
 
@@ -99,6 +107,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Convert a timestamp into readable "5m ago" text.
   String _formatTime(DateTime? dt) {
     if (dt == null) return 'Unknown';
     final diff = DateTime.now().difference(dt);
@@ -110,6 +119,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild map whenever MapViewModel changes.
     return Consumer<MapViewModel>(
       builder: (context, vm, _) {
         if (vm.currentPosition == null) {
@@ -157,6 +167,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // View shown when location services/permission are unavailable.
   Widget _buildNoLocationView(MapViewModel vm) {
     return Container(
       color: AppTheme.background,
@@ -211,6 +222,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Top status bar showing tracking and online friend count.
   Widget _buildStatusBar(MapViewModel vm) {
     final isTracking = vm.isInitialized;
     return Positioned(
@@ -276,6 +288,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Floating map action buttons.
   Widget _buildActionButtons(MapViewModel vm, Set<Marker> markers) {
     return Positioned(
       right: 16,
@@ -332,6 +345,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Reusable round map button.
   Widget _mapFab({
     required IconData icon,
     required String heroTag,
@@ -360,6 +374,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Bottom horizontal list of friends with locations.
   Widget _buildBottomInfoCard(MapViewModel vm) {
     return Positioned(
       bottom: 16,
@@ -414,6 +429,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Small friend chip that recenters map on tap.
   Widget _friendChip(UserModel friend) {
     final loc = friend.location;
     return GestureDetector(
@@ -473,6 +489,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    // Dispose map controller when screen is destroyed.
     _mapController?.dispose();
     super.dispose();
   }

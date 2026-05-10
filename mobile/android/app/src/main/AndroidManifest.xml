@@ -1,8 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allows the app to call the backend API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Allows accurate location while the app is open. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
+    <!-- Allows approximate location if fine location is unavailable. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     
+    <!-- Application settings for the Flutter Android app. -->
     <application
         android:label="friend_finder"
         android:name="${applicationName}"

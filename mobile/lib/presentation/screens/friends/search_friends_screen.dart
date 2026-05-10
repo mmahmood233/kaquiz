@@ -1,3 +1,4 @@
+// Search friends screen.
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import '../../viewmodels/friend_viewmodel.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_model.dart';
 
+// Lets users search by email and send friend requests.
 class SearchFriendsScreen extends StatefulWidget {
   const SearchFriendsScreen({super.key});
 
@@ -13,17 +15,26 @@ class SearchFriendsScreen extends StatefulWidget {
 }
 
 class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
+  // Search input and focus.
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
+
+  // Debounce prevents calling search on every single keystroke.
   Timer? _debounce;
+
+  // Track requests sent during this screen session.
   final Set<String> _sentRequestEmails = {};
   final Set<String> _sendingEmails = {};
+
+  // Cached ViewModel reference, safe to use in dispose.
   late final FriendViewModel _friendViewModel;
 
   @override
   void initState() {
     super.initState();
     _friendViewModel = context.read<FriendViewModel>();
+
+    // Focus the search box after the screen appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -31,6 +42,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
 
   @override
   void dispose() {
+    // Clean up timers/controllers and search results.
     _debounce?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
@@ -38,6 +50,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     super.dispose();
   }
 
+  // Debounced search handler.
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     if (value.trim().isEmpty) {
@@ -51,6 +64,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     });
   }
 
+  // Send a friend request to the selected user.
   Future<void> _sendRequest(UserModel user) async {
     if (_sendingEmails.contains(user.email)) return;
 
@@ -99,6 +113,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Main search screen layout.
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -120,6 +135,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Search input at the top.
   Widget _buildSearchBar() {
     return Container(
       color: AppTheme.surface,
@@ -163,6 +179,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Results area below the search bar.
   Widget _buildResults() {
     return Consumer<FriendViewModel>(
       builder: (context, vm, _) {
@@ -192,6 +209,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Initial hint before user types.
   Widget _buildInitialHint() {
     return Center(
       child: Padding(
@@ -242,6 +260,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Empty state when no user matches the email search.
   Widget _buildNoResults() {
     return Center(
       child: Padding(
@@ -275,6 +294,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Search result card for one user.
   Widget _buildUserCard(UserModel user) {
     final alreadySent = _sentRequestEmails.contains(user.email);
     final isSending = _sendingEmails.contains(user.email);
@@ -332,6 +352,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     );
   }
 
+  // Add/Sent/loading action button for a search result.
   Widget _buildActionButton(
       UserModel user, bool alreadySent, bool isSending) {
     if (alreadySent) {

@@ -1,3 +1,4 @@
+// Home screen with tabs for map, friends, and requests.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -10,6 +11,7 @@ import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
+// Main screen shown after login.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,8 +20,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Current bottom-tab index.
   int _currentIndex = 0;
 
+  // Screens shown inside the IndexedStack.
   final List<Widget> _screens = const [
     MapScreen(),
     FriendsListScreen(),
@@ -29,17 +33,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Start loading app data after the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initialize();
     });
   }
 
+  // Start location tracking and load pending requests.
   Future<void> _initialize() async {
     if (!mounted) return;
     context.read<MapViewModel>().initializeLocation();
     context.read<FriendViewModel>().loadPendingRequests();
   }
 
+  // Open profile/settings screen.
   void _openProfile() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -48,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // IndexedStack keeps tab state alive while switching tabs.
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: _buildAppBar(),
@@ -59,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Top app bar with title, add-friend button, and profile button.
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppTheme.surface,
@@ -136,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Custom bottom navigation bar.
   Widget _buildBottomNav() {
     return Consumer<FriendViewModel>(
       builder: (context, friendViewModel, _) {
@@ -180,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Standard nav item without badge.
   Widget _navItem(
       int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
@@ -220,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Nav item with pending request badge.
   Widget _navItemWithBadge(int index, IconData icon, IconData activeIcon,
       String label, int badgeCount) {
     final isSelected = _currentIndex == index;
@@ -288,6 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Change tab and refresh the data needed for that tab.
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);

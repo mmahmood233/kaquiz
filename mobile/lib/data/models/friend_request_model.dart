@@ -1,3 +1,4 @@
+// InviteUserModel is a small user object used inside friend request data.
 class InviteUserModel {
   final String id;
   final String name;
@@ -11,8 +12,10 @@ class InviteUserModel {
     required this.email,
   });
 
+  // Show name if available; otherwise use the email prefix.
   String get displayName => name.isNotEmpty ? name : email.split('@').first;
 
+  // Convert backend JSON into an InviteUserModel.
   factory InviteUserModel.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'] ?? json['_id'];
     return InviteUserModel(
@@ -24,6 +27,7 @@ class InviteUserModel {
   }
 }
 
+// FriendRequestModel represents one incoming or outgoing friend request.
 class FriendRequestModel {
   final String id;
   final InviteUserModel sender;
@@ -41,6 +45,7 @@ class FriendRequestModel {
     required this.isIncoming,
   });
 
+  // Build a request received by the logged-in user.
   factory FriendRequestModel.fromIncoming(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
@@ -54,6 +59,7 @@ class FriendRequestModel {
     );
   }
 
+  // Build a request sent by the logged-in user.
   factory FriendRequestModel.fromOutgoing(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
@@ -67,7 +73,7 @@ class FriendRequestModel {
     );
   }
 
-  // Kept for backward compat with old response format
+  // Kept for backward compatibility with an older response format.
   factory FriendRequestModel.fromJson(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),

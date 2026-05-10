@@ -1,6 +1,13 @@
+// Flutter material widgets.
 import 'package:flutter/material.dart';
+
+// SystemChrome controls device orientation and status bar style.
 import 'package:flutter/services.dart';
+
+// Provider makes ViewModels available to screens.
 import 'package:provider/provider.dart';
+
+// App ViewModels and screens.
 import 'presentation/viewmodels/auth_viewmodel.dart';
 import 'presentation/viewmodels/friend_viewmodel.dart';
 import 'presentation/viewmodels/map_viewmodel.dart';
@@ -8,9 +15,15 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'core/theme/app_theme.dart';
 
+// App entry point.
 void main() {
+  // Make sure Flutter is ready before setting system UI options.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Keep the app in portrait mode.
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Make the status bar transparent.
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -20,11 +33,13 @@ void main() {
   runApp(const MyApp());
 }
 
+// Root widget of the app.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Provide shared state objects to the whole app.
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
@@ -32,6 +47,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MapViewModel()),
       ],
       child: MaterialApp(
+        // Basic app setup.
         title: 'Friend Finder',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
@@ -41,6 +57,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// First screen shown while auth status is checked.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -50,6 +67,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  // Animation objects used by the splash screen.
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -58,15 +76,19 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+
+    // Create the animation controller.
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
 
+    // Icon grows into place.
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
     );
 
+    // Text fades in.
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -74,6 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
+    // Text slides upward slightly.
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
       CurvedAnimation(
@@ -82,15 +105,18 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
+    // After the animation, decide whether to show home or login.
     _controller.forward().then((_) => _checkAuthStatus());
   }
 
   @override
   void dispose() {
+    // Dispose animation controller to avoid memory leaks.
     _controller.dispose();
     super.dispose();
   }
 
+  // Check if a saved token exists and route user to the correct screen.
   Future<void> _checkAuthStatus() async {
     if (!mounted) return;
     final authViewModel = context.read<AuthViewModel>();
@@ -116,6 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Splash UI with logo, app name, and loading spinner.
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),

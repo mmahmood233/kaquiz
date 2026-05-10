@@ -1,9 +1,11 @@
+// Friend requests screen with received and sent tabs.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/friend_viewmodel.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/friend_request_model.dart';
 
+// Shows incoming requests users can accept/decline and outgoing requests they sent.
 class FriendRequestsScreen extends StatefulWidget {
   const FriendRequestsScreen({super.key});
 
@@ -13,13 +15,18 @@ class FriendRequestsScreen extends StatefulWidget {
 
 class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     with SingleTickerProviderStateMixin {
+  // Controls the Received/Sent tabs.
   late TabController _tabController;
+
+  // Tracks request IDs currently being accepted/declined.
   final Set<String> _processingIds = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Load requests after first render.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FriendViewModel>().loadPendingRequests();
     });
@@ -27,10 +34,12 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
 
   @override
   void dispose() {
+    // Dispose tab controller to avoid leaks.
     _tabController.dispose();
     super.dispose();
   }
 
+  // Accept or deny a friend request.
   Future<void> _handleResponse(
       BuildContext context, String senderUserId, String action) async {
     if (_processingIds.contains(senderUserId)) return;
@@ -68,6 +77,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Top tabs and tab content.
     return Column(
       children: [
         Container(
@@ -111,6 +121,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 
+  // Received requests tab.
   Widget _buildIncomingTab() {
     return Consumer<FriendViewModel>(
       builder: (context, vm, _) {
@@ -140,6 +151,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 
+  // Sent requests tab.
   Widget _buildOutgoingTab() {
     return Consumer<FriendViewModel>(
       builder: (context, vm, _) {
@@ -168,6 +180,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 
+  // Card for a received request with accept/decline buttons.
   Widget _incomingCard(BuildContext context, FriendRequestModel request) {
     final senderUserId = request.sender.id;
     final isProcessing = _processingIds.contains(senderUserId);
@@ -282,6 +295,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 
+  // Card for a sent request.
   Widget _outgoingCard(FriendRequestModel request) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -336,6 +350,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen>
     );
   }
 
+  // Shared empty-state UI for either tab.
   Widget _emptyState(
       {required IconData icon,
       required String title,
