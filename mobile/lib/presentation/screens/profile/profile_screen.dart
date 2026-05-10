@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/friend_viewmodel.dart';
 import '../../viewmodels/map_viewmodel.dart';
 import '../auth/login_screen.dart';
 import '../../../core/theme/app_theme.dart';
@@ -99,6 +100,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true && mounted) {
       context.read<MapViewModel>().stopTracking();
+      context.read<FriendViewModel>().clearSessionData();
       await context.read<AuthViewModel>().logout();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

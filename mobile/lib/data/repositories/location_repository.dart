@@ -21,26 +21,38 @@ class LocationRepository {
       double latitude, double longitude) async {
     try {
       final headers = await _getHeaders();
-      await http
+      final response = await http
           .post(
             Uri.parse('${ApiConstants.baseUrl}${ApiConstants.updateLocation}'),
             headers: headers,
             body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
           )
           .timeout(_timeout);
-      return ApiResponse(success: true);
-    } catch (_) {
-      return ApiResponse(success: false, message: 'Location update failed');
+      final dynamic json = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : <String, dynamic>{};
+      if (response.statusCode == 200) {
+        return ApiResponse(success: true);
+      }
+      return ApiResponse(
+        success: false,
+        message: json is Map
+            ? json['message'] ?? 'Location update failed'
+            : 'Location update failed',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _err(e));
     }
   }
 
-  // GET /api/friends — swagger GET /friends returns locations embedded
+  // GET /api/location/friends
   Future<ApiResponse<List<UserModel>>> getFriendsLocations() async {
     try {
       final headers = await _getHeaders();
       final response = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}${ApiConstants.getFriends}'),
+            Uri.parse(
+                '${ApiConstants.baseUrl}${ApiConstants.getFriendsLocations}'),
             headers: headers,
           )
           .timeout(_timeout);
@@ -58,8 +70,19 @@ class LocationRepository {
         return ApiResponse(success: true, data: withLocation);
       }
       return ApiResponse(success: false, message: 'Failed to get locations');
-    } catch (_) {
-      return ApiResponse(success: false, message: 'Network error');
+    } catch (e) {
+      return ApiResponse(success: false, message: _err(e));
     }
+  }
+
+  String _err(Object e) {
+    final msg = e.toString();
+    if (msg.contains('TimeoutException') || msg.contains('timed out')) {
+      return 'Request timed out.';
+    }
+    if (msg.contains('SocketException') || msg.contains('Connection refused')) {
+      return 'Server is unavailable.';
+    }
+    return 'Network error. Please try again.';
   }
 }

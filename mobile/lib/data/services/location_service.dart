@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import '../../core/constants/app_constants.dart';
 import '../repositories/location_repository.dart';
 
 class LocationService {
   final LocationRepository _locationRepository = LocationRepository();
   Timer? _locationTimer;
   bool _isTracking = false;
+  bool _isSendingLocation = false;
 
   Future<Position?> getCurrentLocation() async {
     try {
@@ -40,23 +42,30 @@ class LocationService {
     _isTracking = true;
     _sendCurrentLocation();
     _locationTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      const Duration(seconds: AppConstants.locationUpdateInterval),
       (_) => _sendCurrentLocation(),
     );
   }
 
   Future<void> _sendCurrentLocation() async {
+    if (!_isTracking || _isSendingLocation) return;
+    _isSendingLocation = true;
     final position = await getCurrentLocation();
-    if (position != null) {
-      await _locationRepository.updateLocation(
-        position.latitude,
-        position.longitude,
-      );
+    try {
+      if (_isTracking && position != null) {
+        await _locationRepository.updateLocation(
+          position.latitude,
+          position.longitude,
+        );
+      }
+    } finally {
+      _isSendingLocation = false;
     }
   }
 
   void stopLocationTracking() {
     _isTracking = false;
+    _isSendingLocation = false;
     _locationTimer?.cancel();
     _locationTimer = null;
   }

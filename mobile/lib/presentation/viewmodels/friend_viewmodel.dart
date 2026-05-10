@@ -116,4 +116,15 @@ class FriendViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
+
+  void clearSessionData() {
+    _state = FriendState.initial;
+    _errorMessage = null;
+    _searchResults = [];
+    _pendingRequests = [];
+    _outgoingRequests = [];
+    _friends = [];
+    _isSearchLoading = false;
+    notifyListeners();
+  }
 }

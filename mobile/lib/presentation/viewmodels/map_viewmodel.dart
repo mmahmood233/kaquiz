@@ -94,6 +94,11 @@ class MapViewModel extends ChangeNotifier {
     _pollingTimer?.cancel();
     _pollingTimer = null;
     _isInitialized = false;
+    _currentPosition = null;
+    _friendsWithLocations = [];
+    _state = MapState.initial;
+    _errorMessage = null;
+    notifyListeners();
   }
 
   String get trackingStatus {

@@ -21,6 +21,7 @@ class ApiConstants {
 
   // Locations (swagger: POST /locations)
   static const String updateLocation = '/locations';
+  static const String getFriendsLocations = '/location/friends';
 
   // Friends (swagger: GET /friends, DELETE /friends/:id)
   static const String getFriends = '/friends';

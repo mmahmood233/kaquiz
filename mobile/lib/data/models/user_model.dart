@@ -21,6 +21,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final rawId = json['_id'] ?? json['id'];
+    final rawFriends = json['friends'];
     return UserModel(
       id: rawId != null ? rawId.toString() : '',
       email: json['email'] ?? '',
@@ -29,8 +30,16 @@ class UserModel {
       location: json['location'] != null
           ? LocationModel.fromJson(json['location'])
           : null,
-      friends: json['friends'] != null
-          ? List<String>.from(json['friends'])
+      friends: rawFriends is List
+          ? rawFriends
+              .map((friend) {
+                if (friend is Map<String, dynamic>) {
+                  return (friend['_id'] ?? friend['id'] ?? '').toString();
+                }
+                return friend.toString();
+              })
+              .where((id) => id.isNotEmpty)
+              .toList()
           : [],
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()

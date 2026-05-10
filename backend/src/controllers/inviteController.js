@@ -148,9 +148,9 @@ exports.declineInvite = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Invitation not found' });
     }
 
-    await db.run('UPDATE invites SET status = ? WHERE id = ?', ['declined', invite.id]);
+    await db.run('UPDATE invites SET status = ? WHERE id = ?', ['denied', invite.id]);
 
-    res.status(200).json({ success: true, message: 'Invitation declined successfully' });
+    res.status(200).json({ success: true, message: 'Invitation denied successfully' });
   } catch (error) {
     next(error);
   }

@@ -18,10 +18,12 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
   Timer? _debounce;
   final Set<String> _sentRequestEmails = {};
   final Set<String> _sendingEmails = {};
+  late final FriendViewModel _friendViewModel;
 
   @override
   void initState() {
     super.initState();
+    _friendViewModel = context.read<FriendViewModel>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -32,19 +34,19 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     _debounce?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
-    context.read<FriendViewModel>().clearSearchResults();
+    _friendViewModel.clearSearchResults();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     if (value.trim().isEmpty) {
-      context.read<FriendViewModel>().clearSearchResults();
+      _friendViewModel.clearSearchResults();
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 400), () {
       if (mounted) {
-        context.read<FriendViewModel>().searchUsers(value.trim());
+        _friendViewModel.searchUsers(value.trim());
       }
     });
   }
@@ -55,8 +57,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     setState(() => _sendingEmails.add(user.email));
 
     // Send invite by user ID (swagger: POST /invites/{user_id})
-    final success =
-        await context.read<FriendViewModel>().sendFriendRequest(user.id);
+    final success = await _friendViewModel.sendFriendRequest(user.id);
 
     if (!mounted) return;
 
@@ -81,7 +82,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
               child: Text(
                 success
                     ? 'Friend request sent to ${user.email}!'
-                    : context.read<FriendViewModel>().errorMessage ??
+                    : _friendViewModel.errorMessage ??
                         'Failed to send request',
               ),
             ),
@@ -138,7 +139,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
                   icon: const Icon(Icons.clear_rounded),
                   onPressed: () {
                     _searchController.clear();
-                    context.read<FriendViewModel>().clearSearchResults();
+                    _friendViewModel.clearSearchResults();
                     setState(() {});
                   },
                 )

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --check src/server.js && node --check src/controllers/authController.js && node --check src/controllers/friendController.js && node --check src/controllers/inviteController.js && node --check src/controllers/locationController.js && node --check src/controllers/userController.js && node --check src/models/UserModel.js && node --check src/routes/auth.js && node --check src/routes/friends.js && node --check src/routes/invites.js && node --check src/routes/locations.js && node --check src/routes/users.js && node --check src/middleware/auth.js && node --check src/middleware/errorHandler.js && node --check src/utils/jwt.js"
   },
   "keywords": ["location", "tracking", "friends", "api"],
   "author": "",
