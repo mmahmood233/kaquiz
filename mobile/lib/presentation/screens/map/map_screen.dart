@@ -79,7 +79,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
             infoWindow: InfoWindow(
               title: friend.email.split('@').first,
-              snippet: 'Saved spot',
+              snippet: 'Last location',
             ),
             zIndexInt: 1,
           ),
@@ -264,8 +264,11 @@ class _MapScreenState extends State<MapScreen> {
               markers: markers,
               myLocationEnabled: false,
               myLocationButtonEnabled: false,
+              mapToolbarEnabled: false,
               zoomControlsEnabled: false,
               compassEnabled: true,
+              onTap: (_) {},
+              onLongPress: (_) {},
               onMapCreated: (controller) {
                 _mapController = controller;
                 // Apply subtle map style
@@ -410,7 +413,7 @@ class _MapScreenState extends State<MapScreen> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
-                  '${vm.friendsWithLocations.length} saved',
+                  '${vm.friendsWithLocations.length} friends',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.textPrimary,
@@ -553,7 +556,7 @@ class _MapScreenState extends State<MapScreen> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Add friends to see their spots here.',
+                        'Add friends to see them on the map.',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 13,

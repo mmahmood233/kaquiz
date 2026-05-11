@@ -18,7 +18,7 @@ class ApiConstants {
       return 'http://10.0.2.2:3000/api';
     }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'http://192.168.3.56:3000/api';
+      return 'http://192.168.3.55:3000/api';
     }
     return 'http://localhost:3000/api';
   }
