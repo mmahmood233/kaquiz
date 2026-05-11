@@ -428,7 +428,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildActionButtons(MapViewModel vm, Set<Marker> markers) {
     return Positioned(
       right: 16,
-      bottom: MediaQuery.of(context).viewPadding.bottom + 198,
+      bottom: 126,
       child: Column(
         children: [
           _mapFab(
@@ -512,7 +512,7 @@ class _MapScreenState extends State<MapScreen> {
   // Bottom horizontal list of friends with locations.
   Widget _buildBottomInfoCard(MapViewModel vm) {
     return Positioned(
-      bottom: MediaQuery.of(context).viewPadding.bottom + 94,
+      bottom: 12,
       left: 16,
       right: 16,
       child: Container(

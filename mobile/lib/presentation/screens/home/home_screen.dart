@@ -59,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
     // IndexedStack keeps tab state alive while switching tabs.
     return Scaffold(
       backgroundColor: AppTheme.background,
-      extendBody: _currentIndex == 0,
       appBar: _currentIndex == 0 ? null : _buildAppBar(),
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: _buildBottomNav(),
@@ -154,47 +153,41 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, friendViewModel, _) {
         final pendingCount = friendViewModel.pendingRequestCount;
 
-        return SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppTheme.surface.withValues(alpha: 0.96),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.85),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
-                ),
-              ],
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppTheme.surface.withValues(alpha: 0.98),
+            border: const Border(
+              top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: SizedBox(
-                height: 72,
-                child: Row(
-                  children: [
-                    _navItem(0, Icons.map_outlined, Icons.map_rounded, 'Map'),
-                    _navItem(
-                      1,
-                      Icons.people_outline_rounded,
-                      Icons.people_rounded,
-                      'Friends',
-                    ),
-                    _navItemWithBadge(
-                      2,
-                      Icons.notifications_outlined,
-                      Icons.notifications_rounded,
-                      'Requests',
-                      pendingCount,
-                    ),
-                  ],
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 64,
+              child: Row(
+                children: [
+                  _navItem(0, Icons.map_outlined, Icons.map_rounded, 'Map'),
+                  _navItem(
+                    1,
+                    Icons.people_outline_rounded,
+                    Icons.people_rounded,
+                    'Friends',
+                  ),
+                  _navItemWithBadge(
+                    2,
+                    Icons.notifications_outlined,
+                    Icons.notifications_rounded,
+                    'Requests',
+                    pendingCount,
+                  ),
+                ],
               ),
             ),
           ),
@@ -214,12 +207,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.secondary.withValues(alpha: 0.65)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
+                color: Colors.transparent,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isSelected ? AppTheme.secondary : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
               ),
               child: Icon(
                 isSelected ? activeIcon : icon,
@@ -264,13 +260,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 6,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.secondary.withValues(alpha: 0.65)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.transparent,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isSelected
+                            ? AppTheme.secondary
+                            : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
                   ),
                   child: Icon(
                     isSelected ? activeIcon : icon,
