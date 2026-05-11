@@ -18,7 +18,7 @@ const { protect } = require('../middleware/auth');
 // Apply auth protection to all routes below this line.
 router.use(protect);
 
-// Search users by email.
+// Search users by email, or list all addable users.
 router.get('/search', searchUsers);
 
 // Send a friend request by receiver email.

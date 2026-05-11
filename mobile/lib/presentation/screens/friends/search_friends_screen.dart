@@ -34,8 +34,9 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
     super.initState();
     _friendViewModel = context.read<FriendViewModel>();
 
-    // Focus the search box after the screen appears.
+    // Load all addable users, then focus the search box after the screen appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _friendViewModel.searchUsers('');
       _focusNode.requestFocus();
     });
   }
@@ -52,11 +53,8 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
 
   // Debounced search handler.
   void _onSearchChanged(String value) {
+    setState(() {});
     _debounce?.cancel();
-    if (value.trim().isEmpty) {
-      _friendViewModel.clearSearchResults();
-      return;
-    }
     _debounce = Timer(const Duration(milliseconds: 400), () {
       if (mounted) {
         _friendViewModel.searchUsers(value.trim());
@@ -85,9 +83,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
         content: Row(
           children: [
             Icon(
-              success
-                  ? Icons.check_circle_rounded
-                  : Icons.error_rounded,
+              success ? Icons.check_circle_rounded : Icons.error_rounded,
               color: Colors.white,
               size: 18,
             ),
@@ -96,16 +92,14 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
               child: Text(
                 success
                     ? 'Friend request sent to ${user.email}!'
-                    : _friendViewModel.errorMessage ??
-                        'Failed to send request',
+                    : _friendViewModel.errorMessage ?? 'Failed to send request',
               ),
             ),
           ],
         ),
         backgroundColor: success ? AppTheme.success : AppTheme.error,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -155,8 +149,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
                   icon: const Icon(Icons.clear_rounded),
                   onPressed: () {
                     _searchController.clear();
-                    _friendViewModel.clearSearchResults();
-                    setState(() {});
+                    _onSearchChanged('');
                   },
                 )
               : null,
@@ -191,26 +184,60 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
           );
         }
 
-        if (_searchController.text.isEmpty) {
-          return _buildInitialHint();
-        }
-
         if (vm.searchResults.isEmpty) {
-          return _buildNoResults();
+          return _searchController.text.trim().isEmpty
+              ? _buildNoAvailableUsers()
+              : _buildNoResults();
         }
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          itemCount: vm.searchResults.length,
-          itemBuilder: (context, index) =>
-              _buildUserCard(vm.searchResults[index]),
+          itemCount: vm.searchResults.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return _buildResultsHeader(vm.searchResults.length);
+            }
+            return _buildUserCard(vm.searchResults[index - 1]);
+          },
         );
       },
     );
   }
 
-  // Initial hint before user types.
-  Widget _buildInitialHint() {
+  // Header above the available users list.
+  Widget _buildResultsHeader(int count) {
+    final query = _searchController.text.trim();
+    final label = query.isEmpty ? 'Available users' : 'Matches for "$query"';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '$count',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Empty state when there are no users this account can add.
+  Widget _buildNoAvailableUsers() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -237,7 +264,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Find your friends',
+              'No users available',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -246,7 +273,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Type an email address to search for people you know',
+              'Create another account or remove a friend to see addable users here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -268,8 +295,11 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_search_rounded,
-                size: 64, color: AppTheme.textHint),
+            Icon(
+              Icons.person_search_rounded,
+              size: 64,
+              color: AppTheme.textHint,
+            ),
             const SizedBox(height: 16),
             const Text(
               'No users found',
@@ -283,10 +313,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
             Text(
               'No account found for "${_searchController.text}"',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -353,22 +380,19 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
   }
 
   // Add/Sent/loading action button for a search result.
-  Widget _buildActionButton(
-      UserModel user, bool alreadySent, bool isSending) {
+  Widget _buildActionButton(UserModel user, bool alreadySent, bool isSending) {
     if (alreadySent) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: AppTheme.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: AppTheme.success.withValues(alpha: 0.3)),
+          border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_rounded,
-                size: 16, color: AppTheme.success),
+            Icon(Icons.check_rounded, size: 16, color: AppTheme.success),
             const SizedBox(width: 4),
             Text(
               'Sent',
@@ -403,8 +427,7 @@ class _SearchFriendsScreenState extends State<SearchFriendsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         elevation: 0,
       ),
     );

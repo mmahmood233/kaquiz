@@ -74,19 +74,15 @@ exports.deleteFriend = async (req, res, next) => {
 };
 
 // GET /api/friends/search?email=...
-// Search for users by email so the logged-in user can add friends.
+// Search addable users by email, or return all addable users when email is empty.
 exports.searchUsers = async (req, res, next) => {
   try {
-    // Read the email search text from the query string.
+    // Read the optional email search text from the query string.
     const { email } = req.query;
-
-    // Search text is required.
-    if (!email || email.trim().length < 1) {
-      return res.status(400).json({ success: false, message: 'Please provide email to search' });
-    }
+    const searchText = typeof email === 'string' ? email.trim() : '';
 
     // Search users but exclude the logged-in user from results.
-    const users = await User.searchByEmail(email.trim(), req.user.id);
+    const users = await User.searchByEmail(searchText, req.user.id);
 
     // Return safe public user data only.
     res.status(200).json({

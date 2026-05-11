@@ -96,11 +96,28 @@ class UserModel {
     return result !== undefined;
   }
 
-  // Search users by partial email, excluding the current user.
-  static async searchByEmail(emailPattern, excludeUserId) {
+  // Search addable users by partial email, excluding current friends and pending requests.
+  static async searchByEmail(emailPattern = '', excludeUserId) {
+    const pattern = `%${emailPattern}%`;
     return db.all(
-      'SELECT id, email, name, avatar, latitude, longitude, location_updated_at, created_at FROM users WHERE email LIKE ? AND id != ?',
-      [`%${emailPattern}%`, excludeUserId]
+      `SELECT id, email, name, avatar, latitude, longitude, location_updated_at, created_at
+       FROM users u
+       WHERE u.id != ?
+         AND u.email LIKE ?
+         AND NOT EXISTS (
+           SELECT 1 FROM friends f
+           WHERE f.user_id = ? AND f.friend_id = u.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM invites i
+           WHERE i.status = 'pending'
+             AND (
+               (i.sender_id = ? AND i.receiver_id = u.id)
+               OR (i.sender_id = u.id AND i.receiver_id = ?)
+             )
+         )
+       ORDER BY u.email COLLATE NOCASE ASC`,
+      [excludeUserId, pattern, excludeUserId, excludeUserId, excludeUserId]
     );
   }
 

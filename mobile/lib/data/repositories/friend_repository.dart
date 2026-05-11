@@ -30,15 +30,20 @@ class FriendRepository {
   // Read current user ID from secure storage.
   Future<String?> _getUserId() => SecureStorage.getUserId();
 
-  // Search users by email.
+  // Search addable users by email, or list all addable users when email is empty.
   Future<ApiResponse<List<UserModel>>> searchUsers(String email) async {
     try {
-      // Send the search text as a query parameter.
+      // Send the search text as an optional query parameter.
       final headers = await _getHeaders();
+      final uri = Uri.parse(
+        '${ApiConstants.baseUrl}${ApiConstants.searchUsers}',
+      );
+      final searchText = email.trim();
       final response = await http
           .get(
-            Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.searchUsers}?email=${Uri.encodeComponent(email)}'),
+            searchText.isEmpty
+                ? uri
+                : uri.replace(queryParameters: {'email': searchText}),
             headers: headers,
           )
           .timeout(_timeout);
@@ -48,11 +53,14 @@ class FriendRepository {
       if (response.statusCode == 200) {
         final List<dynamic> usersJson = json['data']['users'];
         return ApiResponse(
-            success: true,
-            data: usersJson.map((j) => UserModel.fromJson(j)).toList());
+          success: true,
+          data: usersJson.map((j) => UserModel.fromJson(j)).toList(),
+        );
       }
       return ApiResponse(
-          success: false, message: json['message'] ?? 'Search failed');
+        success: false,
+        message: json['message'] ?? 'Search failed',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -66,7 +74,8 @@ class FriendRepository {
       final response = await http
           .post(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.sendInvite(receiverUserId)}'),
+              '${ApiConstants.baseUrl}${ApiConstants.sendInvite(receiverUserId)}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
@@ -76,7 +85,9 @@ class FriendRepository {
         return ApiResponse(success: true, message: json['message']);
       }
       return ApiResponse(
-          success: false, message: json['message'] ?? 'Failed to send invite');
+        success: false,
+        message: json['message'] ?? 'Failed to send invite',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -96,7 +107,8 @@ class FriendRepository {
       final response = await http
           .get(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.getInvites(userId)}'),
+              '${ApiConstants.baseUrl}${ApiConstants.getInvites(userId)}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
@@ -115,8 +127,9 @@ class FriendRepository {
         return ApiResponse(success: true, data: requests);
       }
       return ApiResponse(
-          success: false,
-          message: json['message'] ?? 'Failed to get invites');
+        success: false,
+        message: json['message'] ?? 'Failed to get invites',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -129,7 +142,8 @@ class FriendRepository {
       final response = await http
           .post(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.acceptInvite(senderUserId)}'),
+              '${ApiConstants.baseUrl}${ApiConstants.acceptInvite(senderUserId)}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
@@ -139,8 +153,9 @@ class FriendRepository {
         return ApiResponse(success: true, message: json['message']);
       }
       return ApiResponse(
-          success: false,
-          message: json['message'] ?? 'Failed to accept invite');
+        success: false,
+        message: json['message'] ?? 'Failed to accept invite',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -153,7 +168,8 @@ class FriendRepository {
       final response = await http
           .post(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.declineInvite(senderUserId)}'),
+              '${ApiConstants.baseUrl}${ApiConstants.declineInvite(senderUserId)}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
@@ -163,8 +179,9 @@ class FriendRepository {
         return ApiResponse(success: true, message: json['message']);
       }
       return ApiResponse(
-          success: false,
-          message: json['message'] ?? 'Failed to decline invite');
+        success: false,
+        message: json['message'] ?? 'Failed to decline invite',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -172,7 +189,9 @@ class FriendRepository {
 
   // One helper used by the ViewModel for both accept and deny actions.
   Future<ApiResponse<void>> respondToRequest(
-      String senderUserId, String action) async {
+    String senderUserId,
+    String action,
+  ) async {
     if (action == 'accept') return acceptInvite(senderUserId);
     return declineInvite(senderUserId);
   }
@@ -191,14 +210,19 @@ class FriendRepository {
       final dynamic json = jsonDecode(response.body);
       if (response.statusCode == 200) {
         // Supports both old plain-array responses and current data.friends responses.
-        final List<dynamic> friendsJson =
-            json is List ? json : (json['data']?['friends'] ?? []);
+        final List<dynamic> friendsJson = json is List
+            ? json
+            : (json['data']?['friends'] ?? []);
         return ApiResponse(
-            success: true,
-            data: friendsJson.map((j) => UserModel.fromJson(j)).toList());
+          success: true,
+          data: friendsJson.map((j) => UserModel.fromJson(j)).toList(),
+        );
       }
       final msg = json is Map ? json['message'] : 'Failed to get friends';
-      return ApiResponse(success: false, message: msg ?? 'Failed to get friends');
+      return ApiResponse(
+        success: false,
+        message: msg ?? 'Failed to get friends',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }
@@ -211,7 +235,8 @@ class FriendRepository {
       final response = await http
           .delete(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.deleteFriend(friendId)}'),
+              '${ApiConstants.baseUrl}${ApiConstants.deleteFriend(friendId)}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
@@ -221,8 +246,9 @@ class FriendRepository {
         return ApiResponse(success: true, message: json['message']);
       }
       return ApiResponse(
-          success: false,
-          message: json['message'] ?? 'Failed to remove friend');
+        success: false,
+        message: json['message'] ?? 'Failed to remove friend',
+      );
     } catch (e) {
       return ApiResponse(success: false, message: _err(e));
     }

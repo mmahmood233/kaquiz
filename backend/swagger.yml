@@ -207,16 +207,16 @@ paths:
     get:
       tags:
         - Friends
-      summary: Search for users by email
+      summary: Search addable users by email
       security:
         - BearerAuth: []
       parameters:
         - in: query
           name: email
-          required: true
+          required: false
           schema:
             type: string
-          description: Email to search for
+          description: Optional email filter. Omit it to list all addable users.
       responses:
         '200':
           description: Users found

@@ -32,19 +32,14 @@ class FriendViewModel extends ChangeNotifier {
   bool get isSearchLoading => _isSearchLoading;
   int get pendingRequestCount => _pendingRequests.length;
 
-  // Search for users by email.
+  // Search for addable users by email. Empty text loads all addable users.
   Future<void> searchUsers(String email) async {
-    // Empty search clears results.
-    if (email.isEmpty) {
-      _searchResults = [];
-      notifyListeners();
-      return;
-    }
     _isSearchLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     // Ask repository/backend for matching users.
-    final response = await _repo.searchUsers(email);
+    final response = await _repo.searchUsers(email.trim());
     _isSearchLoading = false;
     if (response.success && response.data != null) {
       _searchResults = response.data!;
