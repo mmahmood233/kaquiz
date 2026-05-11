@@ -113,8 +113,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Padding(
               padding: const EdgeInsets.only(left: 8, top: 8),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
@@ -131,10 +134,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35), width: 2),
+                      color: Colors.white.withValues(alpha: 0.35),
+                      width: 2,
+                    ),
                   ),
-                  child: const Icon(Icons.person_add_alt_1_rounded,
-                      size: 38, color: Colors.white),
+                  child: const Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 38,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -143,7 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
+                    letterSpacing: 0,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -195,11 +203,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         prefixIcon: const Icon(Icons.lock_outline_rounded),
         hintText: 'At least 6 characters',
         suffixIcon: IconButton(
-          icon: Icon(_obscurePassword
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined),
-          onPressed: () =>
-              setState(() => _obscurePassword = !_obscurePassword),
+          icon: Icon(
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
       validator: (value) {
@@ -222,14 +231,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         prefixIcon: const Icon(Icons.lock_outline_rounded),
         hintText: 'Re-enter your password',
         suffixIcon: IconButton(
-          icon: Icon(_obscureConfirm
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined),
+          icon: Icon(
+            _obscureConfirm
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
         ),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Please confirm your password';
+        if (value == null || value.isEmpty) {
+          return 'Please confirm your password';
+        }
         if (value != _passwordController.text) return 'Passwords do not match';
         return null;
       },

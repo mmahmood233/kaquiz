@@ -65,20 +65,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (success) _hasChanges = false;
     });
 
-    messenger.showSnackBar(SnackBar(
-      content: Row(children: [
-        Icon(
-          success ? Icons.check_circle_rounded : Icons.error_rounded,
-          color: Colors.white,
-          size: 18,
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle_rounded : Icons.error_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              success ? 'Profile updated!' : vm.errorMessage ?? 'Update failed',
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Text(success ? 'Profile updated!' : vm.errorMessage ?? 'Update failed'),
-      ]),
-      backgroundColor: success ? AppTheme.success : AppTheme.error,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+        backgroundColor: success ? AppTheme.success : AppTheme.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   // Confirm logout, stop app state, and return to login screen.
@@ -198,8 +204,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.edit_rounded,
-                  size: 14, color: Colors.white),
+              child: const Icon(
+                Icons.edit_rounded,
+                size: 14,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -242,7 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textSecondary,
-                    letterSpacing: 0.3,
+                    letterSpacing: 0,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -262,7 +271,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation(
-                                    AppTheme.primary),
+                                  AppTheme.primary,
+                                ),
                               ),
                             ),
                           )
@@ -290,7 +300,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _isSaving
                           ? const SizedBox(
@@ -298,14 +309,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text(
                               'Save Changes',
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 15),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
                             ),
                     ),
                   ),
@@ -330,8 +344,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: ListTile(
           onTap: _handleLogout,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 4,
+          ),
           leading: Container(
             width: 38,
             height: 38,
@@ -339,8 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppTheme.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.logout_rounded,
-                color: AppTheme.error, size: 20),
+            child: Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
           ),
           title: const Text(
             'Sign Out',
@@ -350,10 +365,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppTheme.error,
             ),
           ),
-          trailing: Icon(Icons.chevron_right_rounded,
-              color: AppTheme.error.withValues(alpha: 0.5)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            color: AppTheme.error.withValues(alpha: 0.5),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
     );

@@ -49,9 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Open profile/settings screen.
   void _openProfile() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
   }
 
   @override
@@ -59,11 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // IndexedStack keeps tab state alive while switching tabs.
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: _buildAppBar(),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      extendBody: _currentIndex == 0,
+      appBar: _currentIndex == 0 ? null : _buildAppBar(),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -96,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppTheme.textPrimary,
-              letterSpacing: -0.3,
+              letterSpacing: 0,
             ),
           ),
         ],
@@ -111,8 +109,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 gradient: AppTheme.primaryGradient,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.person_add_alt_1_rounded,
-                  color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.person_add_alt_1_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SearchFriendsScreen()),
@@ -128,8 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: const Icon(Icons.person_outline_rounded,
-                  color: AppTheme.textSecondary, size: 20),
+              child: const Icon(
+                Icons.person_outline_rounded,
+                color: AppTheme.textSecondary,
+                size: 20,
+              ),
             ),
             onPressed: _openProfile,
             tooltip: authVm.currentUser?.email ?? 'Profile',
@@ -150,37 +154,47 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, friendViewModel, _) {
         final pendingCount = friendViewModel.pendingRequestCount;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            border: const Border(
-              top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
+        return SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppTheme.surface.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.85),
+                width: 1.2,
               ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 64,
-              child: Row(
-                children: [
-                  _navItem(0, Icons.map_outlined, Icons.map_rounded, 'Map'),
-                  _navItem(1, Icons.people_outline_rounded,
-                      Icons.people_rounded, 'Friends'),
-                  _navItemWithBadge(
-                    2,
-                    Icons.notifications_outlined,
-                    Icons.notifications_rounded,
-                    'Requests',
-                    pendingCount,
-                  ),
-                ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: SizedBox(
+                height: 72,
+                child: Row(
+                  children: [
+                    _navItem(0, Icons.map_outlined, Icons.map_rounded, 'Map'),
+                    _navItem(
+                      1,
+                      Icons.people_outline_rounded,
+                      Icons.people_rounded,
+                      'Friends',
+                    ),
+                    _navItemWithBadge(
+                      2,
+                      Icons.notifications_outlined,
+                      Icons.notifications_rounded,
+                      'Requests',
+                      pendingCount,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -190,8 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Standard nav item without badge.
-  Widget _navItem(
-      int index, IconData icon, IconData activeIcon, String label) {
+  Widget _navItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: InkWell(
@@ -204,9 +217,9 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primary.withValues(alpha: 0.12)
+                    ? AppTheme.secondary.withValues(alpha: 0.65)
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Icon(
                 isSelected ? activeIcon : icon,
@@ -219,8 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? AppTheme.primary : AppTheme.textHint,
               ),
             ),
@@ -231,8 +243,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Nav item with pending request badge.
-  Widget _navItemWithBadge(int index, IconData icon, IconData activeIcon,
-      String label, int badgeCount) {
+  Widget _navItemWithBadge(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    int badgeCount,
+  ) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: InkWell(
@@ -245,13 +262,15 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppTheme.primary.withValues(alpha: 0.12)
+                        ? AppTheme.secondary.withValues(alpha: 0.65)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(
                     isSelected ? activeIcon : icon,

@@ -113,7 +113,10 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.35),
+                width: 2,
+              ),
             ),
             child: const Icon(
               Icons.location_on_rounded,
@@ -128,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Colors.white,
               fontSize: 28,
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
+              letterSpacing: 0,
             ),
           ),
           const SizedBox(height: 6),
@@ -219,9 +222,9 @@ class _LoginScreenState extends State<LoginScreen> {
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RegisterScreen()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 4),
           ),

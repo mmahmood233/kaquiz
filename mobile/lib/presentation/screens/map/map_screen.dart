@@ -1,4 +1,6 @@
 // Map screen that shows current user and friends on Google Maps.
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -22,6 +24,10 @@ class _MapScreenState extends State<MapScreen> {
   // Prevents auto-fitting markers over and over.
   bool _didFitBounds = false;
 
+  // Avatar marker icons are generated once and cached.
+  final Map<String, BitmapDescriptor> _markerIconCache = {};
+  final Set<String> _markerIconRequests = {};
+
   @override
   void initState() {
     super.initState();
@@ -37,39 +43,154 @@ class _MapScreenState extends State<MapScreen> {
     final markers = <Marker>{};
 
     if (vm.currentPosition != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('_me'),
-        position: LatLng(
-          vm.currentPosition!.latitude,
-          vm.currentPosition!.longitude,
+      _ensureAvatarMarker('_me', 'you@example.com', isMe: true);
+      markers.add(
+        Marker(
+          markerId: const MarkerId('_me'),
+          position: LatLng(
+            vm.currentPosition!.latitude,
+            vm.currentPosition!.longitude,
+          ),
+          icon:
+              _markerIconCache['_me'] ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+          infoWindow: const InfoWindow(
+            title: 'You',
+            snippet: 'Your current location',
+          ),
+          zIndexInt: 2,
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(
-          title: 'You',
-          snippet: 'Your current location',
-        ),
-        zIndexInt: 2,
-      ));
+      );
     }
 
     for (final friend in vm.friendsWithLocations) {
       final loc = friend.location;
       if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
-        markers.add(Marker(
-          markerId: MarkerId(friend.id),
-          position: LatLng(loc.latitude, loc.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueViolet),
-          infoWindow: InfoWindow(
-            title: friend.email.split('@').first,
-            snippet: _formatTime(loc.lastUpdated),
+        final markerKey = 'friend_${friend.id}';
+        _ensureAvatarMarker(markerKey, friend.email);
+        markers.add(
+          Marker(
+            markerId: MarkerId(friend.id),
+            position: LatLng(loc.latitude, loc.longitude),
+            icon:
+                _markerIconCache[markerKey] ??
+                BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueViolet,
+                ),
+            infoWindow: InfoWindow(
+              title: friend.email.split('@').first,
+              snippet: 'Saved spot',
+            ),
+            zIndexInt: 1,
           ),
-          zIndexInt: 1,
-        ));
+        );
       }
     }
 
     return markers;
+  }
+
+  // Generate a cartoon avatar marker if it is not already cached.
+  void _ensureAvatarMarker(String key, String seed, {bool isMe = false}) {
+    if (_markerIconCache.containsKey(key) ||
+        _markerIconRequests.contains(key)) {
+      return;
+    }
+
+    _markerIconRequests.add(key);
+    _createAvatarMarker(seed, isMe: isMe)
+        .then((icon) {
+          if (!mounted) return;
+          setState(() {
+            _markerIconCache[key] = icon;
+            _markerIconRequests.remove(key);
+          });
+        })
+        .catchError((_) {
+          if (!mounted) return;
+          setState(() => _markerIconRequests.remove(key));
+        });
+  }
+
+  // Draw a Bitmoji-inspired marker as a PNG for Google Maps.
+  Future<BitmapDescriptor> _createAvatarMarker(
+    String seed, {
+    bool isMe = false,
+  }) async {
+    const width = 128.0;
+    const height = 150.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint()..isAntiAlias = true;
+    final center = Offset(width / 2, 58);
+    final color = isMe
+        ? AppTheme.secondary
+        : AppTheme.avatarColorForEmail(seed);
+
+    paint.color = Colors.black.withValues(alpha: 0.18);
+    canvas.drawOval(const Rect.fromLTWH(30, 112, 68, 18), paint);
+
+    final pin = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: 46))
+      ..moveTo(center.dx - 16, 94)
+      ..quadraticBezierTo(center.dx, 132, center.dx + 16, 94)
+      ..close();
+    paint.color = Colors.white;
+    canvas.drawPath(pin, paint);
+
+    paint.color = color;
+    canvas.drawCircle(center, 39, paint);
+
+    paint.color = const Color(0xFFFFD7B5);
+    canvas.drawCircle(Offset(center.dx, center.dy - 2), 25, paint);
+
+    paint.color = AppTheme.textPrimary;
+    final hair = Path()
+      ..moveTo(center.dx - 25, center.dy - 4)
+      ..quadraticBezierTo(
+        center.dx - 5,
+        center.dy - 38,
+        center.dx + 26,
+        center.dy - 12,
+      )
+      ..quadraticBezierTo(
+        center.dx + 8,
+        center.dy - 26,
+        center.dx - 25,
+        center.dy - 4,
+      )
+      ..close();
+    canvas.drawPath(hair, paint);
+
+    paint.color = AppTheme.textPrimary;
+    canvas.drawCircle(Offset(center.dx - 8, center.dy + 2), 2.2, paint);
+    canvas.drawCircle(Offset(center.dx + 8, center.dy + 2), 2.2, paint);
+
+    paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: Offset(center.dx, center.dy + 9),
+        width: 18,
+        height: 12,
+      ),
+      0.2,
+      2.75,
+      false,
+      paint,
+    );
+    paint.style = PaintingStyle.fill;
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(width.toInt(), height.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(
+      byteData!.buffer.asUint8List(),
+      width: 64,
+      height: 75,
+    );
   }
 
   // Move the map camera so all markers are visible.
@@ -78,10 +199,12 @@ class _MapScreenState extends State<MapScreen> {
 
     if (markers.length == 1) {
       _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(
-          target: markers.first.position,
-          zoom: AppConstants.defaultZoom,
-        )),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: markers.first.position,
+            zoom: AppConstants.defaultZoom,
+          ),
+        ),
       );
       return;
     }
@@ -107,16 +230,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Convert a timestamp into readable "5m ago" text.
-  String _formatTime(DateTime? dt) {
-    if (dt == null) return 'Unknown';
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
-
   @override
   Widget build(BuildContext context) {
     // Rebuild map whenever MapViewModel changes.
@@ -129,10 +242,13 @@ class _MapScreenState extends State<MapScreen> {
         final markers = _buildMarkers(vm);
 
         // Fit bounds once after first friends load
-        if (!_didFitBounds && vm.state == MapState.loaded && markers.length > 1) {
+        if (!_didFitBounds &&
+            vm.state == MapState.loaded &&
+            markers.length > 1) {
           _didFitBounds = true;
           WidgetsBinding.instance.addPostFrameCallback(
-              (_) => _fitBoundsToMarkers(markers));
+            (_) => _fitBoundsToMarkers(markers),
+          );
         }
 
         return Stack(
@@ -226,20 +342,21 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildStatusBar(MapViewModel vm) {
     final isTracking = vm.isInitialized;
     return Positioned(
-      top: 12,
+      top: MediaQuery.of(context).padding.top + 12,
       left: 16,
       right: 16,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(14),
+          color: AppTheme.surface.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            )
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
           ],
         ),
         child: Row(
@@ -250,16 +367,26 @@ class _MapScreenState extends State<MapScreen> {
               decoration: BoxDecoration(
                 color: isTracking ? AppTheme.success : AppTheme.textHint,
                 shape: BoxShape.circle,
+                boxShadow: isTracking
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.success.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : null,
               ),
             ),
             const SizedBox(width: 8),
             Text(
-              isTracking ? 'Saving your location' : 'Location saving off',
+              isTracking ? 'Location sharing on' : 'Location sharing off',
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color:
-                    isTracking ? AppTheme.success : AppTheme.textSecondary,
+                fontWeight: FontWeight.w800,
+                color: isTracking
+                    ? AppTheme.textPrimary
+                    : AppTheme.textSecondary,
               ),
             ),
             const Spacer(),
@@ -269,17 +396,26 @@ class _MapScreenState extends State<MapScreen> {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
                 ),
               )
             else
-              Text(
-                '${vm.friendsWithLocations.length} saved',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondary.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  '${vm.friendsWithLocations.length} saved',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
           ],
@@ -292,7 +428,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildActionButtons(MapViewModel vm, Set<Marker> markers) {
     return Positioned(
       right: 16,
-      bottom: 130,
+      bottom: MediaQuery.of(context).viewPadding.bottom + 198,
       child: Column(
         children: [
           _mapFab(
@@ -301,13 +437,15 @@ class _MapScreenState extends State<MapScreen> {
             onTap: () {
               if (vm.currentPosition != null && _mapController != null) {
                 _mapController!.animateCamera(
-                  CameraUpdate.newCameraPosition(CameraPosition(
-                    target: LatLng(
-                      vm.currentPosition!.latitude,
-                      vm.currentPosition!.longitude,
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(
+                      target: LatLng(
+                        vm.currentPosition!.latitude,
+                        vm.currentPosition!.longitude,
+                      ),
+                      zoom: 15,
                     ),
-                    zoom: 15,
-                  )),
+                  ),
                 );
               }
             },
@@ -334,7 +472,8 @@ class _MapScreenState extends State<MapScreen> {
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 2),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               }
@@ -353,22 +492,18 @@ class _MapScreenState extends State<MapScreen> {
     bool isPrimary = false,
   }) {
     return Material(
-      elevation: 4,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(14),
-      color: isPrimary ? AppTheme.primary : AppTheme.surface,
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(22),
+      color: isPrimary ? AppTheme.secondary : AppTheme.surface,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          width: 48,
-          height: 48,
+          width: 54,
+          height: 54,
           alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: 22,
-            color: isPrimary ? Colors.white : AppTheme.textPrimary,
-          ),
+          child: Icon(icon, size: 24, color: AppTheme.textPrimary),
         ),
       ),
     );
@@ -377,18 +512,20 @@ class _MapScreenState extends State<MapScreen> {
   // Bottom horizontal list of friends with locations.
   Widget _buildBottomInfoCard(MapViewModel vm) {
     return Positioned(
-      bottom: 16,
+      bottom: MediaQuery.of(context).viewPadding.bottom + 94,
       left: 16,
       right: 16,
       child: Container(
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.surface.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
@@ -397,27 +534,42 @@ class _MapScreenState extends State<MapScreen> {
           children: [
             if (vm.friendsWithLocations.isEmpty)
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.people_outline_rounded,
-                        color: AppTheme.textHint, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      'No friends with location yet',
-                      style: TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 13),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondary.withValues(alpha: 0.55),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_add_alt_1_rounded,
+                        color: AppTheme.textPrimary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Add friends to see their spots here.',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               )
             else
               SizedBox(
-                height: 80,
+                height: 74,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
+                  padding: EdgeInsets.zero,
                   itemCount: vm.friendsWithLocations.length,
                   itemBuilder: (context, i) =>
                       _friendChip(vm.friendsWithLocations[i]),
@@ -436,49 +588,37 @@ class _MapScreenState extends State<MapScreen> {
       onTap: () {
         if (loc != null && _mapController != null) {
           _mapController!.animateCamera(
-            CameraUpdate.newCameraPosition(CameraPosition(
-              target: LatLng(loc.latitude, loc.longitude),
-              zoom: 15,
-            )),
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: LatLng(loc.latitude, loc.longitude),
+                zoom: 15,
+              ),
+            ),
           );
         }
       },
       child: Container(
-        width: 130,
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        width: 176,
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: AppTheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white),
         ),
         child: Row(
           children: [
-            UserAvatar(email: friend.email, radius: 18),
-            const SizedBox(width: 8),
+            UserAvatar(email: friend.email, radius: 26),
+            const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    friend.email.split('@').first,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Last known ${_formatTime(loc?.lastUpdated)}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                friend.email.split('@').first,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

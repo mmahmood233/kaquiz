@@ -84,9 +84,10 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // Icon grows into place.
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
     // Text fades in.
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -99,11 +100,11 @@ class _SplashScreenState extends State<SplashScreen>
     // Text slides upward slightly.
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-      ),
-    );
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+          ),
+        );
 
     // After the animation, decide whether to show home or login.
     _controller.forward().then((_) => _checkAuthStatus());
@@ -130,8 +131,8 @@ class _SplashScreenState extends State<SplashScreen>
       PageRouteBuilder(
         pageBuilder: (_, animation, _) =>
             authViewModel.state == AuthState.authenticated
-                ? const HomeScreen()
-                : const LoginScreen(),
+            ? const HomeScreen()
+            : const LoginScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -187,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen>
                             color: Colors.white,
                             fontSize: 34,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                            letterSpacing: 0,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -197,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
                             color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
-                            letterSpacing: 0.2,
+                            letterSpacing: 0,
                           ),
                         ),
                       ],
@@ -212,8 +213,9 @@ class _SplashScreenState extends State<SplashScreen>
                     height: 32,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor:
-                          AlwaysStoppedAnimation(Colors.white.withValues(alpha: 0.7)),
+                      valueColor: AlwaysStoppedAnimation(
+                        Colors.white.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                 ),
