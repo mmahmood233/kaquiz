@@ -51,9 +51,18 @@ class MapViewModel extends ChangeNotifier {
 
     // Start periodic location updates only if current location is available.
     if (_currentPosition != null) {
-      _locationService.startLocationTracking();
+      _locationService.startLocationTracking(
+        onPosition: (position) {
+          _currentPosition = position;
+          notifyListeners();
+        },
+      );
       _startFriendsPolling();
       _isInitialized = true;
+    } else {
+      _errorMessage = _locationService.lastError ?? 'Location unavailable.';
+      _state = MapState.error;
+      notifyListeners();
     }
 
     await loadFriendsLocations();
@@ -65,6 +74,8 @@ class MapViewModel extends ChangeNotifier {
     if (position != null) {
       _currentPosition = position;
       notifyListeners();
+    } else {
+      _errorMessage = _locationService.lastError;
     }
   }
 
@@ -127,6 +138,11 @@ class MapViewModel extends ChangeNotifier {
     if (!_isInitialized) return 'Location sharing off';
     if (_locationService.isTracking) return 'Location sharing active';
     return 'Location sharing paused';
+  }
+
+  // Open iOS/Android app settings so the user can re-enable location permission.
+  Future<void> openLocationPermissionSettings() async {
+    await Geolocator.openAppSettings();
   }
 
   @override

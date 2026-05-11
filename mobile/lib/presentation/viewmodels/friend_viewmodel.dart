@@ -53,7 +53,9 @@ class FriendViewModel extends ChangeNotifier {
   // Send a friend request using the searched user's ID.
   Future<bool> sendFriendRequest(String receiverUserId) async {
     final response = await _repo.sendFriendRequest(receiverUserId);
-    if (!response.success) {
+    if (response.success) {
+      await loadPendingRequests();
+    } else {
       _errorMessage = response.message;
       notifyListeners();
     }
@@ -113,7 +115,7 @@ class FriendViewModel extends ChangeNotifier {
   Future<bool> deleteFriend(String friendId) async {
     final response = await _repo.deleteFriend(friendId);
     if (response.success) {
-      await loadFriends();
+      await Future.wait([loadFriends(), loadPendingRequests()]);
     } else {
       _errorMessage = response.message;
       notifyListeners();

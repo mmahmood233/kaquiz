@@ -94,20 +94,23 @@ exports.sendInvite = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Already friends with this user' });
     }
 
-    // Find any invite between these two users in either direction.
-    const existing = await db.get(
+    // Find any invites between these two users in either direction.
+    const existingInvites = await db.all(
       'SELECT * FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [senderId, receiverId, receiverId, senderId]
     );
 
-    if (existing) {
-      // If it is still pending, do not create a duplicate request.
-      if (existing.status === 'pending') {
+    if (existingInvites.length > 0) {
+      // If any request is still pending, do not create a duplicate request.
+      if (existingInvites.some(invite => invite.status === 'pending')) {
         return res.status(400).json({ success: false, message: 'An invite is already pending' });
       }
 
-      // If it was already handled before, remove it so a new request can be sent.
-      await db.run('DELETE FROM invites WHERE id = ?', [existing.id]);
+      // If old requests were already handled, remove all of them so a new request can be sent.
+      await db.run(
+        'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
+        [senderId, receiverId, receiverId, senderId]
+      );
     }
 
     // Create the new pending invite.

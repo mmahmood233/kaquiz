@@ -320,7 +320,8 @@ class _MapScreenState extends State<MapScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Please enable location services to use the map and track your friends.',
+                vm.errorMessage ??
+                    'Please enable location services to use the map and track your friends.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -333,6 +334,12 @@ class _MapScreenState extends State<MapScreen> {
                 label: 'Enable Location',
                 icon: Icons.my_location_rounded,
                 onPressed: () => vm.initializeLocation(),
+              ),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => vm.openLocationPermissionSettings(),
+                icon: const Icon(Icons.settings_rounded, size: 18),
+                label: const Text('Open Settings'),
               ),
             ],
           ),

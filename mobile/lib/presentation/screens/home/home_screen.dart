@@ -321,8 +321,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Change tab and refresh the data needed for that tab.
   void _onNavTap(int index) {
-    if (_currentIndex == index) return;
-    setState(() => _currentIndex = index);
+    if (_currentIndex != index) {
+      setState(() => _currentIndex = index);
+    }
 
     switch (index) {
       case 0:

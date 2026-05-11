@@ -124,21 +124,24 @@ exports.sendFriendRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Already friends with this user' });
     }
 
-    // Check for an existing invite in either direction.
+    // Check for existing invites in either direction.
     // This prevents duplicate pending friend requests.
-    const existing = await db.get(
+    const existingInvites = await db.all(
       'SELECT * FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [req.user.id, receiver.id, receiver.id, req.user.id]
     );
 
-    if (existing) {
+    if (existingInvites.length > 0) {
       // Pending means someone already sent a request, so stop here.
-      if (existing.status === 'pending') {
+      if (existingInvites.some(invite => invite.status === 'pending')) {
         return res.status(400).json({ success: false, message: 'A friend request is already pending' });
       }
 
-      // If the old invite was accepted or denied, delete it so a fresh request can be created.
-      await db.run('DELETE FROM invites WHERE id = ?', [existing.id]);
+      // If old invites were accepted or denied, delete all of them so a fresh request can be created.
+      await db.run(
+        'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
+        [req.user.id, receiver.id, receiver.id, req.user.id]
+      );
     }
 
     // Create the new pending friend request.
