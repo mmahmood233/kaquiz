@@ -124,9 +124,9 @@ class MapViewModel extends ChangeNotifier {
 
   // Human-readable tracking status for UI.
   String get trackingStatus {
-    if (!_isInitialized) return 'Not tracking';
-    if (_locationService.isTracking) return 'Tracking active';
-    return 'Tracking paused';
+    if (!_isInitialized) return 'Location sharing off';
+    if (_locationService.isTracking) return 'Location sharing active';
+    return 'Location sharing paused';
   }
 
   @override

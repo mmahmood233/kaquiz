@@ -120,21 +120,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         Consumer<AuthViewModel>(
           builder: (_, authVm, _) => IconButton(
-            icon: authVm.currentUser != null
-                ? UserAvatar(
-                    email: authVm.currentUser!.email, radius: 18)
-                : Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.person_outline_rounded,
-                        color: AppTheme.textSecondary, size: 20),
-                  ),
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Icon(Icons.person_outline_rounded,
+                  color: AppTheme.textSecondary, size: 20),
+            ),
             onPressed: _openProfile,
-            tooltip: 'Profile',
+            tooltip: authVm.currentUser?.email ?? 'Profile',
           ),
         ),
         const SizedBox(width: 8),

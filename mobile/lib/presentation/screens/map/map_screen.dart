@@ -222,7 +222,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Top status bar showing tracking and online friend count.
+  // Top status bar showing location sharing and visible friend locations.
   Widget _buildStatusBar(MapViewModel vm) {
     final isTracking = vm.isInitialized;
     return Positioned(
@@ -254,7 +254,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              isTracking ? 'Live tracking active' : 'Tracking inactive',
+              isTracking ? 'Saving your location' : 'Location saving off',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -275,7 +275,7 @@ class _MapScreenState extends State<MapScreen> {
               )
             else
               Text(
-                '${vm.friendsWithLocations.length} online',
+                '${vm.friendsWithLocations.length} saved',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppTheme.textSecondary,
@@ -472,7 +472,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _formatTime(loc?.lastUpdated),
+                    'Last known ${_formatTime(loc?.lastUpdated)}',
                     style: TextStyle(
                       fontSize: 10,
                       color: AppTheme.textSecondary,
