@@ -1,18 +1,19 @@
-// Flutter material colors, themes, and widgets.
+// Shared app styling.
+// Keeping colors and reusable widgets here makes every screen look consistent.
 import 'package:flutter/material.dart';
 
-// AppTheme keeps all visual styling in one place.
+// AppTheme stores colors, Material theme setup, buttons, and avatars.
 class AppTheme {
   // Private constructor prevents creating AppTheme objects.
   AppTheme._();
 
-  // Core colors used throughout the app.
+  // Core brand colors used throughout the Flutter UI.
   static const Color primary = Color(0xFF111827);
   static const Color primaryDark = Color(0xFF030712);
   static const Color secondary = Color(0xFFFFD84D);
   static const Color accent = Color(0xFF22D3EE);
 
-  // Main gradient used on splash/auth/buttons.
+  // Main gradient used on splash screens, auth headers, and primary buttons.
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -25,24 +26,24 @@ class AppTheme {
     colors: [Color(0xFFFFF7CC), Color(0xFFE0F7FA)],
   );
 
-  // Background and card/surface colors.
+  // Background and surface colors used by screens, cards, and inputs.
   static const Color background = Color(0xFFF7F7F2);
   static const Color surface = Colors.white;
   static const Color surfaceVariant = Color(0xFFF1F5F9);
 
-  // Text colors.
+  // Text colors for strong text, secondary text, and hints.
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Color(0xFF64748B);
   static const Color textHint = Color(0xFF94A3B8);
   static const Color textOnPrimary = Colors.white;
 
-  // Status colors for success, error, warning, and info.
+  // Status colors used for success, error, warning, and info messages.
   static const Color success = Color(0xFF10B981);
   static const Color error = Color(0xFFEF4444);
   static const Color warning = Color(0xFFF59E0B);
   static const Color info = Color(0xFF3B82F6);
 
-  // Friend avatar colors. Emails are mapped to these colors.
+  // Avatar colors. Each email maps to one color so users stay recognizable.
   static const List<Color> avatarColors = [
     Color(0xFFFFD84D),
     Color(0xFF22D3EE),
@@ -54,14 +55,14 @@ class AppTheme {
     Color(0xFFF472B6),
   ];
 
-  // Pick an avatar color based on the email characters.
+  // Pick a stable avatar color by adding the email character codes.
   static Color avatarColorForEmail(String email) {
     final index =
         email.codeUnits.fold(0, (sum, c) => sum + c) % avatarColors.length;
     return avatarColors[index];
   }
 
-  // Main light theme for the whole app.
+  // Main Material theme used by the whole app.
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -193,7 +194,7 @@ class AppTheme {
   }
 }
 
-// Reusable full-width gradient button.
+// Reusable full-width gradient button used by login/register/location screens.
 class GradientButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -210,7 +211,7 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Shows a loading spinner when isLoading is true.
+    // When isLoading is true, replace the label with a spinner.
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -273,7 +274,8 @@ class GradientButton extends StatelessWidget {
   }
 }
 
-// Reusable cartoon-style avatar based on email.
+// Reusable cartoon-style avatar.
+// It uses email as the seed, so the same user gets the same color/initial.
 class UserAvatar extends StatelessWidget {
   final String email;
   final double radius;
@@ -288,7 +290,7 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use provided color or generate one from the email.
+    // Use a passed color, or generate a stable color from the email.
     final bg = color ?? AppTheme.avatarColorForEmail(email);
     return SizedBox(
       width: radius * 2,

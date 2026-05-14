@@ -1,24 +1,25 @@
-// JSON helpers for backend request and response bodies.
+// This file contains all friend-related API calls made from Flutter.
+// It asks the backend for searchable users, requests, friends, and deletions.
 import 'dart:convert';
 
-// HTTP client for backend calls.
+// http sends requests to the Express backend.
 import 'package:http/http.dart' as http;
 
-// API paths and token storage.
+// ApiConstants gives us endpoint paths, and SecureStorage gives us the JWT token.
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/secure_storage.dart';
 
-// Data models used by friend features.
+// Backend JSON is converted into these Dart models before reaching the UI.
 import '../models/user_model.dart';
 import '../models/friend_request_model.dart';
 import '../models/api_response.dart';
 
-// Maximum time to wait for friend API calls.
+// Friend API calls should fail quickly instead of leaving buttons loading forever.
 const _timeout = Duration(seconds: 10);
 
-// FriendRepository handles search, requests, friends, and deletion API calls.
+// FriendRepository is the data layer for the Friends, Requests, and Search tabs.
 class FriendRepository {
-  // Build headers for authenticated JSON requests.
+  // Every protected backend route needs JSON headers and the saved JWT token.
   Future<Map<String, String>> _getHeaders() async {
     final token = await SecureStorage.getToken();
     return {
@@ -27,13 +28,14 @@ class FriendRepository {
     };
   }
 
-  // Read current user ID from secure storage.
+  // The invite routes need the logged-in user's ID in the URL.
   Future<String?> _getUserId() => SecureStorage.getUserId();
 
-  // Search addable users by email, or list all addable users when email is empty.
+  // Calls GET /api/friends/search.
+  // Empty search text asks the backend for every user this account can still add.
   Future<ApiResponse<List<UserModel>>> searchUsers(String email) async {
     try {
-      // Send the search text as an optional query parameter.
+      // If text exists, send it as ?email= so the backend filters by email.
       final headers = await _getHeaders();
       final uri = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.searchUsers}',
@@ -48,7 +50,7 @@ class FriendRepository {
           )
           .timeout(_timeout);
 
-      // Convert backend users into UserModel objects.
+      // The backend returns data.users; convert each item into a UserModel.
       final json = jsonDecode(response.body);
       if (response.statusCode == 200) {
         final List<dynamic> usersJson = json['data']['users'];
@@ -66,10 +68,10 @@ class FriendRepository {
     }
   }
 
-  // Send a friend request by receiver user ID.
+  // Calls POST /api/invites/{user_id} to send a friend request.
   Future<ApiResponse<void>> sendFriendRequest(String receiverUserId) async {
     try {
-      // The backend uses /invites/:user_id for this app flow.
+      // The receiver ID is placed in the URL so the backend knows who to invite.
       final headers = await _getHeaders();
       final response = await http
           .post(
@@ -93,16 +95,17 @@ class FriendRepository {
     }
   }
 
-  // Load incoming and outgoing pending friend requests.
+  // Calls GET /api/invites/{current_user_id}.
+  // The backend returns both requests received by me and requests I sent.
   Future<ApiResponse<List<FriendRequestModel>>> getPendingRequests() async {
     try {
-      // The invite endpoint needs the current user ID.
+      // Without a saved user ID, the app cannot build the invite URL.
       final userId = await _getUserId();
       if (userId == null) {
         return ApiResponse(success: false, message: 'Not authenticated');
       }
 
-      // Ask backend for both received and sent requests.
+      // Ask the backend for pending invites connected to the logged-in user.
       final headers = await _getHeaders();
       final response = await http
           .get(
@@ -119,7 +122,7 @@ class FriendRepository {
         final List incoming = data['incoming'] ?? [];
         final List outgoing = data['outgoing'] ?? [];
 
-        // Mark each request as incoming or outgoing for the UI tabs.
+        // Mark each request so the UI can show it under Received or Sent.
         final requests = [
           ...incoming.map((j) => FriendRequestModel.fromIncoming(j)),
           ...outgoing.map((j) => FriendRequestModel.fromOutgoing(j)),
@@ -135,7 +138,8 @@ class FriendRepository {
     }
   }
 
-  // Accept a friend request from a sender user ID.
+  // Calls POST /api/invites/{sender_user_id}/accept.
+  // The backend changes the invite to accepted and adds both users as friends.
   Future<ApiResponse<void>> acceptInvite(String senderUserId) async {
     try {
       final headers = await _getHeaders();
@@ -161,7 +165,8 @@ class FriendRepository {
     }
   }
 
-  // Decline a friend request from a sender user ID.
+  // Calls POST /api/invites/{sender_user_id}/decline.
+  // The backend marks the invite as denied, so no friendship is created.
   Future<ApiResponse<void>> declineInvite(String senderUserId) async {
     try {
       final headers = await _getHeaders();
@@ -187,7 +192,7 @@ class FriendRepository {
     }
   }
 
-  // One helper used by the ViewModel for both accept and deny actions.
+  // The ViewModel sends "accept" or "decline"; this routes it to the right API.
   Future<ApiResponse<void>> respondToRequest(
     String senderUserId,
     String action,
@@ -196,7 +201,7 @@ class FriendRepository {
     return declineInvite(senderUserId);
   }
 
-  // Load the logged-in user's friends.
+  // Calls GET /api/friends to load the logged-in user's current friend list.
   Future<ApiResponse<List<UserModel>>> getFriends() async {
     try {
       final headers = await _getHeaders();
@@ -209,7 +214,7 @@ class FriendRepository {
 
       final dynamic json = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        // Supports both old plain-array responses and current data.friends responses.
+        // Support old plain-array responses and the current data.friends shape.
         final List<dynamic> friendsJson = json is List
             ? json
             : (json['data']?['friends'] ?? []);
@@ -228,7 +233,8 @@ class FriendRepository {
     }
   }
 
-  // Delete a friend by user ID.
+  // Calls DELETE /api/friends/{friend_id}.
+  // The backend removes the friendship for both users.
   Future<ApiResponse<void>> deleteFriend(String friendId) async {
     try {
       final headers = await _getHeaders();
@@ -254,7 +260,7 @@ class FriendRepository {
     }
   }
 
-  // Convert network errors into short user-facing messages.
+  // Convert network exceptions into short messages for snackbars/forms.
   String _err(Object e) {
     final msg = e.toString();
     if (msg.contains('TimeoutException')) return 'Request timed out.';

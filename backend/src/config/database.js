@@ -1,20 +1,21 @@
 // sqlite3 is the database library used by this backend.
+// The app stores users, friends, requests, and last known locations in SQLite.
 const sqlite3 = require('sqlite3').verbose();
 
-// path helps us build a safe file path to the SQLite database file.
+// path builds a safe file path to backend/database.sqlite.
 const path = require('path');
 
-// Store the database file inside the backend folder.
+// Store the database file inside the backend folder so it is easy to find.
 const dbPath = path.join(__dirname, '../../database.sqlite');
 
-// Open a connection to the SQLite database.
-// If database.sqlite does not exist yet, SQLite will create it.
+// Open a connection to SQLite.
+// If database.sqlite does not exist, SQLite creates it automatically.
 const db = new sqlite3.Database(dbPath);
 
-// Run the setup queries one after another.
-// This creates the tables the app needs when the server starts.
+// Run setup queries in order when the server starts.
+// This makes local setup simple because tables are created automatically.
 db.serialize(() => {
-  // The users table stores accounts, profile data, and last known location.
+  // users stores accounts, profile fields, and each user's last known location.
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,12 +30,12 @@ db.serialize(() => {
     )
   `);
 
-  // Add name/avatar columns if an older database was created before these fields existed.
-  // The empty callback ignores the "duplicate column" error if the column already exists.
+  // Add name/avatar columns for older databases that were made before these fields.
+  // The empty callback ignores the expected duplicate-column error.
   db.run(`ALTER TABLE users ADD COLUMN name TEXT`, () => {});
   db.run(`ALTER TABLE users ADD COLUMN avatar TEXT`, () => {});
 
-  // The friends table stores friendship links.
+  // friends stores accepted friendships.
   // Each friendship is stored in both directions:
   // user A -> user B and user B -> user A.
   db.run(`
@@ -47,8 +48,8 @@ db.serialize(() => {
     )
   `);
 
-  // The invites table stores friend requests.
-  // status can be pending, accepted, or denied.
+  // invites stores friend requests.
+  // status is pending, accepted, or denied.
   db.run(`
     CREATE TABLE IF NOT EXISTS invites (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,8 +63,8 @@ db.serialize(() => {
     )
   `);
 
-  // Move old friend request data into the newer invites table if that old table exists.
-  // INSERT OR IGNORE avoids creating duplicate invite rows.
+  // If an old friend_requests table exists, copy its data into invites.
+  // INSERT OR IGNORE avoids duplicate rows during repeated server starts.
   db.run(`
     INSERT OR IGNORE INTO invites (id, sender_id, receiver_id, status, created_at)
     SELECT id, sender_id, receiver_id, status, created_at FROM friend_requests
@@ -73,10 +74,10 @@ db.serialize(() => {
 });
 
 // sqlite3 uses callbacks by default.
-// This wrapper lets the rest of the app use async/await instead.
+// This wrapper lets controllers/models use async/await instead.
 const dbAsync = {
   // Run INSERT, UPDATE, and DELETE queries.
-  // It returns the new row ID and number of changed rows.
+  // lastID is useful after inserts; changes tells how many rows were updated/deleted.
   run: (sql, params = []) => new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
       if (err) reject(err);
@@ -84,7 +85,7 @@ const dbAsync = {
     });
   }),
 
-  // Read one row from the database.
+  // Read one row from the database, or undefined when nothing matches.
   get: (sql, params = []) => new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
       if (err) reject(err);
@@ -92,7 +93,7 @@ const dbAsync = {
     });
   }),
 
-  // Read many rows from the database.
+  // Read many rows from the database and return them as an array.
   all: (sql, params = []) => new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
       if (err) reject(err);
@@ -101,5 +102,5 @@ const dbAsync = {
   })
 };
 
-// Export the async database helper so controllers and models can use it.
+// Export the async database helper so controllers and models can share it.
 module.exports = dbAsync;

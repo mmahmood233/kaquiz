@@ -1,4 +1,5 @@
-// Map screen that shows current user and friends on Google Maps.
+// Map screen.
+// It displays Google Maps markers for the current user and friends from backend.
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_model.dart';
 
-// Displays friend locations on a map.
+// Friends only appear here after the backend returns a saved last known location.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -18,13 +19,13 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Google Maps controller is used to move/zoom the map.
+  // Google Maps controller moves the camera when users tap buttons/chips.
   GoogleMapController? _mapController;
 
-  // Prevents auto-fitting markers over and over.
+  // Prevents auto-fitting markers on every rebuild.
   bool _didFitBounds = false;
 
-  // Avatar marker icons are generated once and cached.
+  // Avatar marker icons are generated as PNGs once and reused.
   final Map<String, BitmapDescriptor> _markerIconCache = {};
   final Set<String> _markerIconRequests = {};
 
@@ -32,13 +33,13 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
 
-    // Load latest friend locations when the map appears.
+    // Load latest friend locations from the backend when the map appears.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MapViewModel>().loadFriendsLocations();
     });
   }
 
-  // Build markers for current user and friends.
+  // Converts current GPS position and backend friend locations into map markers.
   Set<Marker> _buildMarkers(MapViewModel vm) {
     final markers = <Marker>{};
 
@@ -90,7 +91,7 @@ class _MapScreenState extends State<MapScreen> {
     return markers;
   }
 
-  // Generate a cartoon avatar marker if it is not already cached.
+  // Starts marker generation only if this marker has not already been cached.
   void _ensureAvatarMarker(String key, String seed, {bool isMe = false}) {
     if (_markerIconCache.containsKey(key) ||
         _markerIconRequests.contains(key)) {
@@ -112,7 +113,7 @@ class _MapScreenState extends State<MapScreen> {
         });
   }
 
-  // Draw a Bitmoji-inspired marker as a PNG for Google Maps.
+  // Draws a simple cartoon avatar marker and converts it to a Google Maps icon.
   Future<BitmapDescriptor> _createAvatarMarker(
     String seed, {
     bool isMe = false,
@@ -193,7 +194,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Move the map camera so all markers are visible.
+  // Moves the map camera so the user and friends are all visible.
   void _fitBoundsToMarkers(Set<Marker> markers) {
     if (_mapController == null || markers.isEmpty) return;
 
@@ -232,7 +233,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild map whenever MapViewModel changes.
+    // Rebuild the map whenever GPS or backend friend locations change.
     return Consumer<MapViewModel>(
       builder: (context, vm, _) {
         if (vm.currentPosition == null) {
@@ -241,7 +242,7 @@ class _MapScreenState extends State<MapScreen> {
 
         final markers = _buildMarkers(vm);
 
-        // Fit bounds once after first friends load
+        // Fit bounds once after friends load so the first map view is useful.
         if (!_didFitBounds &&
             vm.state == MapState.loaded &&
             markers.length > 1) {
@@ -271,14 +272,14 @@ class _MapScreenState extends State<MapScreen> {
               onLongPress: (_) {},
               onMapCreated: (controller) {
                 _mapController = controller;
-                // Apply subtle map style
+                // Keep the controller so buttons can move the camera later.
               },
             ),
-            // Top status bar
+            // Shows tracking state and count of friends with locations.
             _buildStatusBar(vm),
-            // Action buttons
+            // Buttons for my location, fit markers, and refresh backend data.
             _buildActionButtons(vm, markers),
-            // Bottom info card
+            // Friend tray with quick camera shortcuts.
             _buildBottomInfoCard(vm),
           ],
         );
@@ -286,7 +287,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // View shown when location services/permission are unavailable.
+  // View shown when iOS/Android will not give the app a GPS location.
   Widget _buildNoLocationView(MapViewModel vm) {
     return Container(
       color: AppTheme.background,
@@ -348,7 +349,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Top status bar showing location sharing and visible friend locations.
+  // Top status bar showing whether location sharing started successfully.
   Widget _buildStatusBar(MapViewModel vm) {
     final isTracking = vm.isInitialized;
     return Positioned(
@@ -434,7 +435,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Floating map action buttons.
+  // Floating map buttons for camera actions and manual backend refresh.
   Widget _buildActionButtons(MapViewModel vm, Set<Marker> markers) {
     return Positioned(
       right: 16,
@@ -494,7 +495,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Reusable round map button.
+  // Reusable round map button used by the right-side controls.
   Widget _mapFab({
     required IconData icon,
     required String heroTag,
@@ -519,7 +520,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Bottom horizontal list of friends with locations.
+  // Bottom friend tray. It shows friends returned from /api/location/friends.
   Widget _buildBottomInfoCard(MapViewModel vm) {
     return Positioned(
       bottom: 12,
@@ -591,7 +592,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // Small friend chip that recenters map on tap.
+  // Tapping a friend chip moves the camera to that friend's last known location.
   Widget _friendChip(UserModel friend) {
     final loc = friend.location;
     return GestureDetector(
@@ -639,7 +640,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    // Dispose map controller when screen is destroyed.
+    // Dispose map controller when this screen is destroyed.
     _mapController?.dispose();
     super.dispose();
   }

@@ -1,26 +1,27 @@
-// Timer is used to refresh friend locations.
+// This ViewModel controls the map screen.
+// It starts GPS sharing, sends location updates, and reloads friends' locations.
 import 'dart:async';
 
-// ChangeNotifier lets the map screen rebuild on state changes.
+// ChangeNotifier lets MapScreen rebuild when location data changes.
 import 'package:flutter/foundation.dart';
 
-// Position is the device location object from geolocator.
+// Position is the GPS object returned by geolocator.
 import 'package:geolocator/geolocator.dart';
 
-// Backend repository, device location service, and user model.
+// LocationRepository talks to the backend; LocationService talks to the phone GPS.
 import '../../data/repositories/location_repository.dart';
 import '../../data/services/location_service.dart';
 import '../../data/models/user_model.dart';
 
-// Loading states used by the map screen.
+// The map uses this state to show loading, map content, or an error.
 enum MapState { initial, loading, loaded, error }
 
-// MapViewModel manages current location, friend locations, and timers.
+// MapViewModel keeps the user's current location and friends' last locations.
 class MapViewModel extends ChangeNotifier {
   final LocationRepository _locationRepository = LocationRepository();
   final LocationService _locationService = LocationService();
 
-  // Private state values.
+  // Private state used by the map screen.
   MapState _state = MapState.initial;
   String? _errorMessage;
   List<UserModel> _friendsWithLocations = [];
@@ -28,16 +29,17 @@ class MapViewModel extends ChangeNotifier {
   Timer? _pollingTimer;
   bool _isInitialized = false;
 
-  // Public read-only values for the UI.
+  // Public read-only values used by MapScreen.
   MapState get state => _state;
   String? get errorMessage => _errorMessage;
   List<UserModel> get friendsWithLocations => _friendsWithLocations;
   Position? get currentPosition => _currentPosition;
   bool get isInitialized => _isInitialized;
 
-  // Start location tracking and load friend locations.
+  // Called when the home screen opens.
+  // It gets the phone location, starts 5-second uploads, then loads friends.
   Future<void> initializeLocation() async {
-    // If already initialized, just refresh friend locations.
+    // If tracking already started, only refresh friends from the backend.
     if (_isInitialized) {
       await loadFriendsLocations();
       return;
@@ -46,13 +48,14 @@ class MapViewModel extends ChangeNotifier {
     _state = MapState.loading;
     notifyListeners();
 
-    // First get this device's current location.
+    // First get this phone's GPS location so the map can center on the user.
     await loadCurrentLocation();
 
-    // Start periodic location updates only if current location is available.
+    // Only start the 5-second backend updates after GPS permission succeeds.
     if (_currentPosition != null) {
       _locationService.startLocationTracking(
         onPosition: (position) {
+          // Each successful timer tick moves the user's marker on the map.
           _currentPosition = position;
           notifyListeners();
         },
@@ -68,7 +71,7 @@ class MapViewModel extends ChangeNotifier {
     await loadFriendsLocations();
   }
 
-  // Load current device location once.
+  // Reads the phone location once without starting the repeating timer.
   Future<void> loadCurrentLocation() async {
     final position = await _locationService.getCurrentLocation();
     if (position != null) {
@@ -79,7 +82,7 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  // Load friends who have location data.
+  // Calls the backend for friends that have a saved last known location.
   Future<void> loadFriendsLocations() async {
     if (_state != MapState.loading) {
       _state = MapState.loading;
@@ -88,7 +91,7 @@ class MapViewModel extends ChangeNotifier {
 
     final response = await _locationRepository.getFriendsLocations();
 
-    // Store locations or show an error.
+    // Store friends with coordinates so MapScreen can create markers.
     if (response.success && response.data != null) {
       _friendsWithLocations = response.data!;
       _state = MapState.loaded;
@@ -99,7 +102,7 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Refresh friend locations every 10 seconds while map is open.
+  // Polls the backend every 10 seconds so friends' markers stay updated.
   void _startFriendsPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(
@@ -108,7 +111,7 @@ class MapViewModel extends ChangeNotifier {
     );
   }
 
-  // Refresh friend locations without showing a loading spinner.
+  // Refreshes friend locations silently so the map does not flash a loader.
   Future<void> _silentRefreshFriends() async {
     final response = await _locationRepository.getFriendsLocations();
     if (response.success && response.data != null) {
@@ -120,7 +123,7 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  // Stop timers and clear map data, usually on logout.
+  // Stops GPS sharing and friend polling, usually when the user logs out.
   void stopTracking() {
     _locationService.stopLocationTracking();
     _pollingTimer?.cancel();
@@ -133,20 +136,20 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Human-readable tracking status for UI.
+  // Text used by the map status bar.
   String get trackingStatus {
     if (!_isInitialized) return 'Location sharing off';
     if (_locationService.isTracking) return 'Location sharing active';
     return 'Location sharing paused';
   }
 
-  // Open iOS/Android app settings so the user can re-enable location permission.
+  // Opens system settings when location permission was blocked.
   Future<void> openLocationPermissionSettings() async {
     await Geolocator.openAppSettings();
   }
 
   @override
-  // Clean up timers when provider is destroyed.
+  // Clean up timers when Provider removes this ViewModel.
   void dispose() {
     _locationService.dispose();
     _pollingTimer?.cancel();

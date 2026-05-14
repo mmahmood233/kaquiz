@@ -1,4 +1,5 @@
-// InviteUserModel is a small user object used inside friend request data.
+// InviteUserModel is the small user object the backend sends inside invites.
+// It is smaller than UserModel because requests only need id, name, avatar, email.
 class InviteUserModel {
   final String id;
   final String name;
@@ -12,10 +13,10 @@ class InviteUserModel {
     required this.email,
   });
 
-  // Show name if available; otherwise use the email prefix.
+  // Show the user's name, or fall back to the email prefix.
   String get displayName => name.isNotEmpty ? name : email.split('@').first;
 
-  // Convert backend JSON into an InviteUserModel.
+  // Convert the sender/recipient JSON from the backend into a Dart object.
   factory InviteUserModel.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'] ?? json['_id'];
     return InviteUserModel(
@@ -27,7 +28,7 @@ class InviteUserModel {
   }
 }
 
-// FriendRequestModel represents one incoming or outgoing friend request.
+// FriendRequestModel represents one pending friend request shown in the UI.
 class FriendRequestModel {
   final String id;
   final InviteUserModel sender;
@@ -45,7 +46,8 @@ class FriendRequestModel {
     required this.isIncoming,
   });
 
-  // Build a request received by the logged-in user.
+  // Build a request from the backend's incoming list.
+  // Incoming means someone else sent a request to the logged-in user.
   factory FriendRequestModel.fromIncoming(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
@@ -59,7 +61,8 @@ class FriendRequestModel {
     );
   }
 
-  // Build a request sent by the logged-in user.
+  // Build a request from the backend's outgoing list.
+  // Outgoing means the logged-in user sent a request and is waiting.
   factory FriendRequestModel.fromOutgoing(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
@@ -73,7 +76,7 @@ class FriendRequestModel {
     );
   }
 
-  // Kept for backward compatibility with an older response format.
+  // Kept for older backend responses that used sender/receiver directly.
   factory FriendRequestModel.fromJson(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),

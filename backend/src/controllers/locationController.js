@@ -1,37 +1,37 @@
-// UserModel contains location and friend database helpers.
+// Location controller saves my location and returns friends' last locations.
+// Flutter calls these routes from LocationRepository and MapViewModel.
 const User = require('../models/UserModel');
 
 // POST /api/locations
-// Save the logged-in user's latest location.
+// Saves the logged-in user's latest GPS coordinates.
 exports.updateLocation = async (req, res, next) => {
   try {
-    // Read latitude and longitude from the request body.
+    // Flutter sends latitude and longitude every 5 seconds while the app is open.
     const { latitude, longitude } = req.body;
 
-    // Both coordinates are required.
+    // Both coordinates are required to update last known location.
     if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({ success: false, message: 'Please provide latitude and longitude' });
     }
 
-    // Convert values to numbers because JSON can send them as strings.
+    // Convert values to numbers because JSON body values may arrive as strings.
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
 
-    // Reject anything that cannot be parsed as a number.
+    // Reject values that are not real numbers.
     if (isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({ success: false, message: 'Coordinates must be valid numbers' });
     }
 
-    // Latitude must be between -90 and 90.
-    // Longitude must be between -180 and 180.
+    // Check valid earth coordinate ranges before writing to SQLite.
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return res.status(400).json({ success: false, message: 'Coordinates out of valid range' });
     }
 
-    // Save the valid location for the logged-in user.
+    // Save the valid location on the current user's row.
     await User.updateLocation(req.user.id, lat, lng);
 
-    // Return the saved location details.
+    // Return the saved location details so Flutter knows the update worked.
     res.status(200).json({
       success: true,
       message: 'Location updated successfully',
@@ -44,19 +44,19 @@ exports.updateLocation = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };
 
-// GET /api/location/friends — Swagger-compatible friend locations endpoint
-// Return the logged-in user's friends with their last known locations.
+// GET /api/location/friends and GET /api/locations/friends
+// Returns the logged-in user's friends with their last saved locations.
 exports.getFriendsLocations = async (req, res, next) => {
   try {
-    // Get all friends for the logged-in user.
+    // Only return friends of req.user, so users cannot see strangers' locations.
     const friends = await User.getFriends(req.user.id);
 
-    // Return safe friend objects, including location fields.
+    // Safe friend objects include location fields but never password hashes.
     res.status(200).json({
       success: true,
       data: {
@@ -64,7 +64,7 @@ exports.getFriendsLocations = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };

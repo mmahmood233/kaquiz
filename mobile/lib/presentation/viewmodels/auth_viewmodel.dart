@@ -1,34 +1,36 @@
-// ChangeNotifier lets screens rebuild when auth state changes.
+// This ViewModel sits between the auth screens and AuthRepository.
+// Screens call these methods, then this class calls the backend through the repository.
 import 'package:flutter/foundation.dart';
 
-// Repository talks to backend auth endpoints.
+// AuthRepository contains the actual HTTP calls to /api/auth and /api/users.
 import '../../data/repositories/auth_repository.dart';
 
-// Current user model.
+// UserModel stores the user object returned by the backend.
 import '../../data/models/user_model.dart';
 
-// Possible authentication states for the UI.
+// The UI reads this state to know whether to show loading, errors, or the app.
 enum AuthState { initial, loading, authenticated, unauthenticated, error }
 
-// AuthViewModel holds auth state for login/register/profile screens.
+// AuthViewModel keeps the current logged-in user in memory.
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
 
-  // Private state values.
+  // Private values can only be changed from inside this ViewModel.
   AuthState _state = AuthState.initial;
   String? _errorMessage;
   UserModel? _currentUser;
 
-  // Public read-only state values.
+  // Screens read these values but cannot change them directly.
   AuthState get state => _state;
   String? get errorMessage => _errorMessage;
   UserModel? get currentUser => _currentUser;
 
-  // Check if a saved token exists and is still valid.
+  // Runs on app start.
+  // It checks local storage first, then asks the backend if the token is valid.
   Future<void> checkAuthStatus() async {
     final isLoggedIn = await _authRepository.isLoggedIn();
 
-    // No saved token means user is logged out.
+    // No token on the device means the user must sign in again.
     if (!isLoggedIn) {
       _currentUser = null;
       _state = AuthState.unauthenticated;
@@ -36,13 +38,13 @@ class AuthViewModel extends ChangeNotifier {
       return;
     }
 
-    // Validate token by asking backend for current user.
+    // GET /api/auth/me confirms that the saved token still belongs to a user.
     final response = await _authRepository.getMe();
     if (response.success && response.data != null) {
       _currentUser = response.data;
       _state = AuthState.authenticated;
     } else {
-      // Bad or expired token is cleared.
+      // Bad or expired tokens are removed so the app does not keep retrying them.
       await _authRepository.logout();
       _currentUser = null;
       _state = AuthState.unauthenticated;
@@ -50,7 +52,8 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Register and update UI state.
+  // Called by RegisterScreen.
+  // It sends the new email/password to the backend and updates the UI state.
   Future<bool> register(String email, String password) async {
     _state = AuthState.loading;
     _errorMessage = null;
@@ -58,7 +61,7 @@ class AuthViewModel extends ChangeNotifier {
 
     final response = await _authRepository.register(email, password);
 
-    // Save user in memory if backend created the account.
+    // If the backend created the account, keep the returned user in memory.
     if (response.success && response.data != null) {
       _currentUser = UserModel.fromJson(response.data!['user']);
       _state = AuthState.authenticated;
@@ -72,7 +75,8 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // Login and update UI state.
+  // Called by LoginScreen.
+  // It sends credentials to the backend and returns true when login works.
   Future<bool> login(String email, String password) async {
     _state = AuthState.loading;
     _errorMessage = null;
@@ -80,7 +84,7 @@ class AuthViewModel extends ChangeNotifier {
 
     final response = await _authRepository.login(email, password);
 
-    // Save user in memory if backend accepted the login.
+    // If the backend accepts the login, store the returned user in memory.
     if (response.success && response.data != null) {
       _currentUser = UserModel.fromJson(response.data!['user']);
       _state = AuthState.authenticated;
@@ -94,14 +98,15 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // Update the user's display name.
+  // Called by ProfileScreen when the user edits their display name.
+  // The repository sends the change to the backend, then we update local state.
   Future<bool> updateProfile(String name) async {
     _errorMessage = null;
     notifyListeners();
 
     final response = await _authRepository.updateProfile(name);
     if (response.success && response.data != null) {
-      // Backend returns updated user data.
+      // The backend returns the updated user, so the profile screen refreshes.
       final userData = response.data!['user'] ?? response.data;
       if (userData != null) {
         _currentUser = UserModel.fromJson(userData as Map<String, dynamic>);
@@ -114,7 +119,8 @@ class AuthViewModel extends ChangeNotifier {
     return false;
   }
 
-  // Clear saved token and reset auth state.
+  // Called on logout.
+  // It clears secure storage and tells the app to return to the login screen.
   Future<void> logout() async {
     await _authRepository.logout();
     _currentUser = null;

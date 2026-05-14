@@ -1,24 +1,24 @@
-// Express router groups location routes.
+// Location routes connect map/location API URLs to controller functions.
 const express = require('express');
 const router = express.Router();
 
-// Controller functions for updating and reading locations.
+// Controller functions save my location and read friends' saved locations.
 const { updateLocation, getFriendsLocations } = require('../controllers/locationController');
 
-// Location routes require the user to be logged in.
+// Location routes are private because location data belongs to logged-in users.
 const { protect } = require('../middleware/auth');
 
 // Apply auth protection to all routes below this line.
 router.use(protect);
 
-// Update current user's location.
+// POST /api/locations saves the current user's latitude/longitude.
 router.post('/', updateLocation);
 
-// Swagger-compatible update route.
+// POST /api/locations/update is kept for Swagger/API compatibility.
 router.post('/update', updateLocation);
 
-// Get friends with their last known locations.
+// GET /api/location/friends returns friends with their last known locations.
 router.get('/friends', getFriendsLocations);
 
-// Export this router so server.js can mount it.
+// server.js mounts this router at both /api/locations and /api/location.
 module.exports = router;

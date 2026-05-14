@@ -1,4 +1,5 @@
-// Profile screen for editing display name and signing out.
+// Profile screen.
+// It lets the user update their display name and sign out.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -7,7 +8,7 @@ import '../../viewmodels/map_viewmodel.dart';
 import '../auth/login_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
-// Shows current user profile and logout action.
+// Profile actions use AuthViewModel, and logout also clears friend/map state.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -16,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Form and input controller for display name.
+  // Form/controller used for the editable display name field.
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   bool _isSaving = false;
@@ -26,7 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
 
-    // Pre-fill the name field with current user's name.
+    // Pre-fill the name field with the user returned by the auth backend.
     final user = context.read<AuthViewModel>().currentUser;
     _nameController = TextEditingController(text: user?.name ?? '');
     _nameController.addListener(_onNameChanged);
@@ -34,13 +35,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    // Remove listener and dispose controller to avoid leaks.
+    // Remove listener and dispose controller because this screen owns them.
     _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     super.dispose();
   }
 
-  // Track whether user changed the display name.
+  // Tracks whether the typed name is different from the current backend value.
   void _onNameChanged() {
     final user = context.read<AuthViewModel>().currentUser;
     final original = user?.name ?? '';
@@ -48,7 +49,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (changed != _hasChanges) setState(() => _hasChanges = changed);
   }
 
-  // Validate and save display name.
+  // Saves display name changes.
+  // AuthViewModel calls PUT /api/users and updates currentUser on success.
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_hasChanges) return;
@@ -87,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Confirm logout, stop app state, and return to login screen.
+  // Confirms logout, stops location timers, clears friend data, and removes token.
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -185,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // User avatar shown at top.
+  // Avatar generated from the user's email so every account looks different.
   Widget _buildAvatar(String email) {
     return Container(
       padding: const EdgeInsets.only(top: 32, bottom: 8),
@@ -216,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Email text below avatar.
+  // Email is read-only because this app uses email as the account identity.
   Widget _buildEmail(String email) {
     return Text(
       email,
@@ -228,7 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Form for editing display name.
+  // Form for editing display name before sending it to the backend.
   Widget _buildForm() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -332,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Logout button section.
+  // Logout section. Tapping it opens the confirmation dialog.
   Widget _buildLogoutSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),

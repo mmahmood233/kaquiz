@@ -1,20 +1,21 @@
-// UserModel contains all database functions for users.
+// Auth controller handles register, login, and "current user" requests.
+// The Flutter auth screens call these routes through AuthRepository.
 const User = require('../models/UserModel');
 
-// generateToken creates a JWT token after login/register.
+// generateToken creates the JWT token returned to Flutter after login/register.
 const { generateToken } = require('../utils/jwt');
 
-// Simple email format check.
-// It prevents obviously invalid emails before saving or logging in.
+// Simple email format check before we query or save the user.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Register a new user account.
+// POST /api/auth/register
+// Creates a new user, returns a token, and signs the app in immediately.
 exports.register = async (req, res, next) => {
   try {
-    // Read email and password from the request body.
+    // Flutter sends email and password in the JSON request body.
     const { email, password } = req.body;
 
-    // Both email and password are required.
+    // Both fields are required to create an account.
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -22,10 +23,10 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Trim spaces and store emails lowercase so duplicates are easier to detect.
+    // Normalize email so AA@AA.AA and aa@aa.aa are treated as the same account.
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Stop registration if the email is not valid.
+    // Stop early if the email clearly is not valid.
     if (!EMAIL_REGEX.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
@@ -33,7 +34,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Require a small minimum password length.
+    // Keep password validation simple for this project: minimum 6 characters.
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
@@ -41,7 +42,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Check if another user already registered with this email.
+    // Do not allow duplicate accounts with the same email.
     const userExists = await User.findByEmail(normalizedEmail);
 
     if (userExists) {
@@ -51,14 +52,13 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Save the new user. The model hashes the password before inserting it.
+    // UserModel hashes the password before inserting the new row in SQLite.
     const user = await User.create(normalizedEmail, password);
 
-    // Create a JWT token so the user is logged in immediately after registering.
+    // Create a token so Flutter can call protected routes right away.
     const token = generateToken(user.id);
 
-    // Send back the token and safe user data.
-    // Safe user data does not include the password.
+    // Send token and safe user data. The password hash is never returned.
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
@@ -68,18 +68,19 @@ exports.register = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the shared Express error handler.
+    // Unexpected errors go to the shared Express error handler.
     next(error);
   }
 };
 
-// Login an existing user account.
+// POST /api/auth/login
+// Checks email/password and returns a fresh JWT token when valid.
 exports.login = async (req, res, next) => {
   try {
-    // Read login details from the request body.
+    // Flutter sends the typed email and password in JSON.
     const { email, password } = req.body;
 
-    // Both fields must be provided.
+    // Both fields are required to log in.
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -87,14 +88,13 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Use lowercase email so login works even if user typed capital letters.
+    // Lowercase email so login is not case-sensitive.
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Find the user by email.
+    // Find the user account in SQLite.
     const user = await User.findByEmail(normalizedEmail);
 
-    // Do not say whether email or password was wrong.
-    // This keeps the login response safer.
+    // Use one generic message so attackers cannot tell which field was wrong.
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -102,7 +102,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Compare the typed password with the hashed password in the database.
+    // Compare typed password with the stored bcrypt password hash.
     const isPasswordMatch = await User.matchPassword(user, password);
 
     if (!isPasswordMatch) {
@@ -112,10 +112,10 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Login succeeded, so create a fresh JWT token.
+    // Login succeeded, so create a fresh token for Flutter to store.
     const token = generateToken(user.id);
 
-    // Return token and safe user profile.
+    // Return token and safe user profile without the password hash.
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -125,21 +125,22 @@ exports.login = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Pass unexpected errors to the shared error handler.
+    // Unexpected errors go to the shared error handler.
     next(error);
   }
 };
 
-// Return the currently logged-in user's profile.
+// GET /api/auth/me
+// Flutter calls this on app start to check if the saved token still works.
 exports.getMe = async (req, res, next) => {
   try {
-    // req.user is added by the auth middleware after it verifies the JWT token.
+    // auth middleware already verified the token and put the user on req.user.
     const user = await User.findById(req.user.id);
 
-    // Load the user's friends so the app can show profile/friend data after restart.
+    // Include friends so Flutter can rebuild user state after app restart.
     const friends = await User.getFriends(req.user.id);
 
-    // Return safe user data and safe friend data.
+    // Return only safe user/friend fields. Never return password hashes.
     res.status(200).json({
       success: true,
       data: {
@@ -150,7 +151,7 @@ exports.getMe = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Pass unexpected errors to Express error middleware.
+    // Unexpected errors go to Express error middleware.
     next(error);
   }
 };

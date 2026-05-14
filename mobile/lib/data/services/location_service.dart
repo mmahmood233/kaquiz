@@ -1,46 +1,47 @@
-// Timer is used to send location every few seconds.
+// This service reads the phone's GPS location and sends it to the backend.
+// The timer keeps doing this every few seconds while the app is open.
 import 'dart:async';
 
-// debugPrint writes useful location failures into the Flutter console.
+// debugPrint shows location failures in the Flutter/Xcode console.
 import 'package:flutter/foundation.dart';
 
-// geolocator reads device location and asks for location permission.
+// geolocator asks for permission and reads the device's current position.
 import 'package:geolocator/geolocator.dart';
 
-// App constants and backend repository.
+// AppConstants has the 5-second interval, and LocationRepository calls backend.
 import '../../core/constants/app_constants.dart';
 import '../repositories/location_repository.dart';
 
-// LocationService owns permission checks, current location, and tracking timer.
+// LocationService owns permission checks, GPS reading, and repeated uploading.
 class LocationService {
-  // Repository used to send location to backend.
+  // This repository calls POST /api/locations after we get GPS coordinates.
   final LocationRepository _locationRepository = LocationRepository();
 
-  // Timer that repeats while the app is open/tracking.
+  // This timer fires every 5 seconds while location sharing is active.
   Timer? _locationTimer;
 
-  // Whether location tracking is currently active.
+  // Prevents starting multiple timers for the same logged-in user.
   bool _isTracking = false;
 
-  // Prevents two location sends from running at the same time.
+  // Avoids overlapping location requests if GPS is slow.
   bool _isSendingLocation = false;
 
-  // Last location/permission failure. The UI can show this to the user.
+  // Stores the last permission/GPS error so the map screen can explain it.
   String? _lastError;
 
-  // Ask the device for current location.
+  // Asks iOS/Android for the current location after checking permission.
   Future<Position?> getCurrentLocation() async {
     try {
       _lastError = null;
 
-      // Location service must be enabled on the phone.
+      // The phone's global Location Services switch must be on first.
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _lastError = 'Location services are turned off.';
         return null;
       }
 
-      // Check and request location permission.
+      // If the app does not have permission yet, show the system prompt.
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -50,14 +51,14 @@ class LocationService {
         }
       }
 
-      // If permission is permanently denied, the app cannot get location.
+      // If the user blocked permission, they must enable it in Settings.
       if (permission == LocationPermission.deniedForever) {
         _lastError =
             'Location permission is blocked. Enable it in iPhone Settings.';
         return null;
       }
 
-      // Return a high-accuracy location reading.
+      // High accuracy gives better map markers when the device supports it.
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 8),
@@ -65,12 +66,13 @@ class LocationService {
     } catch (e) {
       _lastError = 'Location update failed: $e';
       debugPrint('LOCATION UPDATE FAILURE: $e');
-      // Return null if location fails for any reason.
+      // Returning null tells the ViewModel to show a location error instead.
       return null;
     }
   }
 
-  // Start sending location immediately and then every 5 seconds.
+  // Starts location sharing now, then repeats every 5 seconds.
+  // onPosition updates the map marker as soon as a new GPS point is found.
   void startLocationTracking({void Function(Position position)? onPosition}) {
     if (_isTracking) return;
 
@@ -82,7 +84,7 @@ class LocationService {
     );
   }
 
-  // Get current location and send it to the backend.
+  // Reads the GPS position and calls the backend to save it as "last known".
   Future<void> _sendCurrentLocation({
     void Function(Position position)? onPosition,
   }) async {
@@ -102,7 +104,7 @@ class LocationService {
     }
   }
 
-  // Stop the repeating location timer.
+  // Stops background timers when the user logs out or the service is disposed.
   void stopLocationTracking() {
     _isTracking = false;
     _isSendingLocation = false;
@@ -110,7 +112,7 @@ class LocationService {
     _locationTimer = null;
   }
 
-  // Simple read-only tracking status.
+  // Read-only values used by the ViewModel/UI.
   bool get isTracking => _isTracking;
   String? get lastError => _lastError;
 

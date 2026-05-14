@@ -1,21 +1,18 @@
-// ApiResponse wraps backend responses in one common object.
+// ApiResponse wraps backend results in one common object.
+// Repositories return this so ViewModels can handle success and failure the same way.
 class ApiResponse<T> {
-  // Whether the request succeeded.
+  // True when the HTTP call worked and the backend accepted the request.
   final bool success;
 
-  // Optional message from the backend or app.
+  // Message from the backend, or a simple app-made network error message.
   final String? message;
 
-  // Optional typed data returned by the request.
+  // Optional data, already converted into the Dart type the caller expects.
   final T? data;
 
-  ApiResponse({
-    required this.success,
-    this.message,
-    this.data,
-  });
+  ApiResponse({required this.success, this.message, this.data});
 
-  // Build an ApiResponse from JSON.
+  // Build an ApiResponse from backend JSON.
   // fromJsonT converts the nested data field into the correct Dart type.
   factory ApiResponse.fromJson(
     Map<String, dynamic> json,
@@ -24,8 +21,8 @@ class ApiResponse<T> {
     return ApiResponse<T>(
       success: json['success'] ?? false,
       message: json['message'],
-      data: json['data'] != null && fromJsonT != null 
-          ? fromJsonT(json['data']) 
+      data: json['data'] != null && fromJsonT != null
+          ? fromJsonT(json['data'])
           : null,
     );
   }

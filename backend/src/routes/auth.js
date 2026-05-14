@@ -1,21 +1,21 @@
-// Express router groups authentication routes.
+// Auth routes connect /api/auth URLs to the auth controller.
 const express = require('express');
 const router = express.Router();
 
-// Controller functions contain the actual auth logic.
+// Controller functions register users, log them in, and return current user.
 const { register, login, getMe } = require('../controllers/authController');
 
-// protect checks the JWT token before protected routes.
+// protect verifies the JWT token before private routes like /me.
 const { protect } = require('../middleware/auth');
 
-// Create a new account.
+// Flutter RegisterScreen calls POST /api/auth/register.
 router.post('/register', register);
 
-// Login with email and password.
+// Flutter LoginScreen calls POST /api/auth/login.
 router.post('/login', login);
 
-// Return current logged-in user. This route needs a valid token.
+// Flutter SplashScreen calls GET /api/auth/me to validate a saved token.
 router.get('/me', protect, getMe);
 
-// Export this router so server.js can mount it at /api/auth.
+// server.js mounts this router at /api/auth.
 module.exports = router;

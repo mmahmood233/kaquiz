@@ -1,11 +1,12 @@
-// Register screen UI and form validation.
+// Register screen.
+// It validates a new account form, then asks AuthViewModel to call the backend.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../home/home_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
-// Screen where new users create an account.
+// New users create an account with email and password here.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -14,7 +15,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Form key and controllers for registration inputs.
+  // Controllers hold the typed email/password before registration.
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -24,14 +25,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    // Dispose controllers to prevent memory leaks.
+    // Dispose controllers because this screen owns them.
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // Validate form, call backend register, and navigate on success.
+  // Runs when Create Account is pressed.
+  // If validation passes, AuthViewModel sends POST /api/auth/register.
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -45,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Replace register screen with home after account creation.
+      // Registration worked, so open the main app immediately.
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, animation, _) => const HomeScreen(),
@@ -55,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
     } else {
-      // Show backend or network error message.
+      // Registration failed, so show the backend/network message.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authViewModel.errorMessage ?? 'Registration failed'),
@@ -67,7 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Main registration layout.
+    // Main registration layout with account fields and submit button.
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -103,7 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Top branded header with back button.
+  // Top branded header with a back button to return to LoginScreen.
   Widget _buildHeader(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
@@ -170,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Email input with basic validation.
+  // Email field checks for a basic email format before registration.
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -192,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Password input with show/hide button.
+  // Password field requires at least 6 characters before backend registration.
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -219,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Confirms the password matches.
+  // Confirm field prevents sending mismatched passwords to the backend.
   Widget _buildConfirmPasswordField() {
     return TextFormField(
       controller: _confirmPasswordController,
@@ -249,7 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Submit button that shows loading from AuthViewModel.
+  // Button reads AuthViewModel.loading so duplicate register calls are avoided.
   Widget _buildRegisterButton() {
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, _) {
@@ -263,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Link back to the login screen.
+  // Returns to LoginScreen for users who already have an account.
   Widget _buildLoginLink(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

@@ -1,19 +1,20 @@
-// ChangeNotifier lets friend screens rebuild when state changes.
+// This ViewModel connects friend screens to FriendRepository.
+// Screens never call HTTP directly; they call this class instead.
 import 'package:flutter/foundation.dart';
 
-// Repository and models for friend data.
+// FriendRepository contains the backend API calls for friends and invites.
 import '../../data/repositories/friend_repository.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/friend_request_model.dart';
 
-// Loading states used by friend screens.
+// The UI reads this to show loading spinners, lists, or error states.
 enum FriendState { initial, loading, loaded, error }
 
-// FriendViewModel stores friends, search results, and friend requests.
+// FriendViewModel stores all friend-related data currently shown in the app.
 class FriendViewModel extends ChangeNotifier {
   final FriendRepository _repo = FriendRepository();
 
-  // Private state values.
+  // Private lists keep search results, requests, and friends in memory.
   FriendState _state = FriendState.initial;
   String? _errorMessage;
   List<UserModel> _searchResults = [];
@@ -22,7 +23,7 @@ class FriendViewModel extends ChangeNotifier {
   List<UserModel> _friends = [];
   bool _isSearchLoading = false;
 
-  // Public read-only state values for widgets.
+  // Screens read these values and rebuild when notifyListeners is called.
   FriendState get state => _state;
   String? get errorMessage => _errorMessage;
   List<UserModel> get searchResults => _searchResults;
@@ -32,13 +33,14 @@ class FriendViewModel extends ChangeNotifier {
   bool get isSearchLoading => _isSearchLoading;
   int get pendingRequestCount => _pendingRequests.length;
 
-  // Search for addable users by email. Empty text loads all addable users.
+  // Called by SearchFriendsScreen.
+  // Empty text loads all addable users; typed text filters by email on backend.
   Future<void> searchUsers(String email) async {
     _isSearchLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    // Ask repository/backend for matching users.
+    // The repository calls GET /api/friends/search and returns UserModel objects.
     final response = await _repo.searchUsers(email.trim());
     _isSearchLoading = false;
     if (response.success && response.data != null) {
@@ -50,7 +52,8 @@ class FriendViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Send a friend request using the searched user's ID.
+  // Sends a request to the selected user from the search screen.
+  // The repository calls POST /api/invites/{receiver_user_id}.
   Future<bool> sendFriendRequest(String receiverUserId) async {
     final response = await _repo.sendFriendRequest(receiverUserId);
     if (response.success) {
@@ -62,14 +65,15 @@ class FriendViewModel extends ChangeNotifier {
     return response.success;
   }
 
-  // Load incoming and outgoing pending requests.
+  // Loads requests for the Requests tab.
+  // The backend returns both incoming and outgoing pending invites.
   Future<void> loadPendingRequests() async {
     _state = FriendState.loading;
     notifyListeners();
 
     final response = await _repo.getPendingRequests();
     if (response.success && response.data != null) {
-      // Split combined repository data into UI tabs.
+      // Split the combined backend result into Received and Sent tabs.
       _pendingRequests = response.data!.where((r) => r.isIncoming).toList();
       _outgoingRequests = response.data!.where((r) => !r.isIncoming).toList();
       _state = FriendState.loaded;
@@ -82,11 +86,12 @@ class FriendViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Accept or deny an incoming friend request.
+  // Accepts or declines a request from the Requests tab.
+  // After the backend responds, reload requests and friends so the UI is current.
   Future<bool> respondToRequest(String senderUserId, String action) async {
     final response = await _repo.respondToRequest(senderUserId, action);
     if (response.success) {
-      // Refresh requests and friends after accepting or denying.
+      // Accept changes the friends list; decline removes the pending request.
       await Future.wait([loadPendingRequests(), loadFriends()]);
     } else {
       _errorMessage = response.message;
@@ -95,7 +100,7 @@ class FriendViewModel extends ChangeNotifier {
     return response.success;
   }
 
-  // Load the user's current friends list.
+  // Loads the Friends tab by calling GET /api/friends through the repository.
   Future<void> loadFriends() async {
     _state = FriendState.loading;
     notifyListeners();
@@ -111,7 +116,8 @@ class FriendViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Delete one friend by ID.
+  // Deletes one friend.
+  // The backend removes the friendship, then we reload friends and requests.
   Future<bool> deleteFriend(String friendId) async {
     final response = await _repo.deleteFriend(friendId);
     if (response.success) {
@@ -123,14 +129,14 @@ class FriendViewModel extends ChangeNotifier {
     return response.success;
   }
 
-  // Clear search when leaving the search screen.
+  // Clears old search results so reopening search starts fresh.
   void clearSearchResults() {
     _searchResults = [];
     _errorMessage = null;
     notifyListeners();
   }
 
-  // Clear all friend-related data on logout.
+  // Clears friend data after logout so the next account does not see old data.
   void clearSessionData() {
     _state = FriendState.initial;
     _errorMessage = null;

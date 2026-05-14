@@ -1,45 +1,47 @@
-// db is the async SQLite helper.
+// UserModel is the backend data layer for users, friends, and locations.
+// Controllers call these methods instead of writing SQL directly everywhere.
 const db = require('../config/database');
 
-// bcrypt hashes passwords and checks password matches securely.
+// bcrypt hashes passwords before saving and checks passwords during login.
 const bcrypt = require('bcryptjs');
 
-// UserModel is a collection of database helper methods for users.
+// UserModel groups SQLite helper methods for the users/friends tables.
 class UserModel {
-  // Create a new user with a hashed password.
+  // Create a new user row.
+  // The raw password is never saved; only the bcrypt hash is stored.
   static async create(email, password) {
     // Generate a salt and hash the password before saving it.
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert the new user into the database.
+    // Insert the account into SQLite.
     const result = await db.run(
       'INSERT INTO users (email, password) VALUES (?, ?)',
       [email, hashedPassword]
     );
 
-    // Return the created user row.
+    // Return the created user row so the controller can return safe user data.
     return this.findById(result.lastID);
   }
 
-  // Find one user by email.
+  // Find one user by email. Used by register/login and request-by-email routes.
   static async findByEmail(email) {
     return db.get('SELECT * FROM users WHERE email = ?', [email]);
   }
 
-  // Find one user by ID.
+  // Find one user by ID. Used after verifying JWT tokens and invite IDs.
   static async findById(id) {
     return db.get('SELECT * FROM users WHERE id = ?', [id]);
   }
 
-  // Compare a typed password with the stored hashed password.
+  // Compare a typed password with the stored bcrypt hash.
   static async matchPassword(user, enteredPassword) {
     return bcrypt.compare(enteredPassword, user.password);
   }
 
-  // Update profile fields that were provided.
+  // Update profile fields that were provided by the profile screen.
   static async updateProfile(userId, { name, avatar }) {
-    // Build the SQL update dynamically so only sent fields are changed.
+    // Build SQL dynamically so only sent fields are changed.
     const fields = [];
     const values = [];
     if (name !== undefined) { fields.push('name = ?'); values.push(name); }
@@ -48,15 +50,15 @@ class UserModel {
     // If nothing was sent, just return the current user.
     if (fields.length === 0) return this.findById(userId);
 
-    // Add the user ID for the WHERE clause and run the update.
+    // Add userId for the WHERE clause and run the update.
     values.push(userId);
     await db.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
 
-    // Return the updated user.
+    // Return the updated user row.
     return this.findById(userId);
   }
 
-  // Save the user's latest latitude and longitude.
+  // Save the user's latest latitude/longitude from Flutter's 5-second updates.
   static async updateLocation(userId, latitude, longitude) {
     await db.run(
       `UPDATE users SET latitude = ?, longitude = ?, location_updated_at = datetime('now') WHERE id = ?`,
@@ -67,7 +69,8 @@ class UserModel {
     return this.findById(userId);
   }
 
-  // Get all friends for one user.
+  // Get all accepted friends for one user.
+  // Friend rows point from the current user to each friend.
   static async getFriends(userId) {
     return db.all(
       'SELECT u.* FROM users u INNER JOIN friends f ON u.id = f.friend_id WHERE f.user_id = ?',
@@ -75,7 +78,7 @@ class UserModel {
     );
   }
 
-  // Add a friendship in both directions.
+  // Add a friendship in both directions so either user can query their friends.
   static async addFriend(userId, friendId) {
     await db.run('INSERT OR IGNORE INTO friends (user_id, friend_id) VALUES (?, ?)', [userId, friendId]);
     await db.run('INSERT OR IGNORE INTO friends (user_id, friend_id) VALUES (?, ?)', [friendId, userId]);
@@ -87,7 +90,7 @@ class UserModel {
     await db.run('DELETE FROM friends WHERE user_id = ? AND friend_id = ?', [friendId, userId]);
   }
 
-  // Check if two users are friends.
+  // Check if two users are currently friends.
   static async isFriend(userId, friendId) {
     const result = await db.get(
       'SELECT 1 FROM friends WHERE user_id = ? AND friend_id = ?',
@@ -96,7 +99,8 @@ class UserModel {
     return result !== undefined;
   }
 
-  // Search addable users by partial email, excluding current friends and pending requests.
+  // Search addable users by partial email.
+  // Excludes the current user, current friends, and users with pending invites.
   static async searchByEmail(emailPattern = '', excludeUserId) {
     const pattern = `%${emailPattern}%`;
     return db.all(
@@ -121,7 +125,7 @@ class UserModel {
     );
   }
 
-  // Return public user data without sensitive fields.
+  // Return a small public user object for invite/search results.
   static toPublic(user) {
     if (!user) return null;
     return {
@@ -133,7 +137,7 @@ class UserModel {
   }
 
   // Return safe user data for API responses.
-  // This never includes the password hash.
+  // This includes location for map screens but never includes the password hash.
   static toSafeObject(user) {
     if (!user) return null;
     return {
@@ -153,5 +157,5 @@ class UserModel {
   }
 }
 
-// Export the model so controllers can use it.
+// Export the model so controllers can use these database helpers.
 module.exports = UserModel;

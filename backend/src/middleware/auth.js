@@ -1,20 +1,21 @@
-// verifyToken checks if a JWT token is valid.
+// verifyToken checks whether a JWT token is valid and not expired.
 const { verifyToken } = require('../utils/jwt');
 
-// UserModel is used to load the user connected to the token.
+// UserModel loads the user account connected to the token.
 const User = require('../models/UserModel');
 
-// protect is middleware for routes that require login.
+// protect runs before routes that require login.
+// Flutter sends Authorization: Bearer <token>, and this middleware verifies it.
 const protect = async (req, res, next) => {
-  // The token will be read from the Authorization header.
+  // Start with no token, then read it from the Authorization header if present.
   let token;
 
-  // Expected header format: Authorization: Bearer <token>
+  // Expected header format from Flutter: Authorization: Bearer <token>
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
-  // If there is no token, the user is not logged in.
+  // No token means the request is not logged in, so stop before the controller.
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -23,10 +24,10 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    // Decode and verify the JWT token.
+    // Decode and verify the JWT token using JWT_SECRET.
     const decoded = verifyToken(token);
     
-    // If the token is invalid or expired, reject the request.
+    // Invalid or expired tokens are rejected.
     if (!decoded) {
       return res.status(401).json({
         success: false,
@@ -34,11 +35,11 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Load the user from the database and attach it to req.user.
-    // Controllers can then use req.user.id.
+    // Load the user from SQLite and attach it to req.user.
+    // Controllers use req.user.id instead of trusting IDs from the client.
     req.user = await User.findById(decoded.id);
     
-    // If the token points to a user that no longer exists, reject it.
+    // If the token points to a deleted/missing user, reject it.
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -46,10 +47,10 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Continue to the controller.
+    // Token is valid, so continue to the protected controller.
     next();
   } catch (error) {
-    // Any auth error is returned as unauthorized.
+    // Any auth failure returns the same unauthorized response.
     return res.status(401).json({
       success: false,
       message: 'Not authorized to access this route'
@@ -57,5 +58,5 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Export the middleware so route files can use it.
+// Route files import this to protect private API endpoints.
 module.exports = { protect };

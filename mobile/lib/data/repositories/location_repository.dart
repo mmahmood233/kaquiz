@@ -1,23 +1,24 @@
-// JSON helpers for request and response bodies.
+// This file contains the map/location API calls made by the Flutter app.
+// It sends my location to the backend and loads my friends' saved locations.
 import 'dart:convert';
 
-// HTTP client for backend calls.
+// http sends requests to the Express backend.
 import 'package:http/http.dart' as http;
 
-// API paths and saved token helper.
+// ApiConstants has endpoint paths, and SecureStorage gives us the JWT token.
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/secure_storage.dart';
 
-// Models used by this repository.
+// Backend friend/location JSON is converted into these models.
 import '../models/user_model.dart';
 import '../models/api_response.dart';
 
-// Location calls should fail quickly so they do not block the UI.
+// Location calls run often, so keep the timeout short to avoid blocking the map.
 const _timeout = Duration(seconds: 8);
 
-// LocationRepository handles location-related backend calls.
+// LocationRepository is the only class that talks to location backend routes.
 class LocationRepository {
-  // Build headers for authenticated JSON requests.
+  // Location routes are protected, so each request sends the saved JWT token.
   Future<Map<String, String>> _getHeaders() async {
     final token = await SecureStorage.getToken();
     return {
@@ -26,11 +27,14 @@ class LocationRepository {
     };
   }
 
-  // Send current latitude and longitude to the backend.
+  // Calls POST /api/locations.
+  // The backend saves these coordinates as the user's latest known location.
   Future<ApiResponse<void>> updateLocation(
-      double latitude, double longitude) async {
+    double latitude,
+    double longitude,
+  ) async {
     try {
-      // Send the latest location for the logged-in user.
+      // Send only latitude and longitude; the backend knows the user from the JWT.
       final headers = await _getHeaders();
       final response = await http
           .post(
@@ -40,12 +44,12 @@ class LocationRepository {
           )
           .timeout(_timeout);
 
-      // Decode response so backend error messages can be shown.
+      // Decode the backend response so validation errors can be shown if needed.
       final dynamic json = response.body.isNotEmpty
           ? jsonDecode(response.body)
           : <String, dynamic>{};
 
-      // 200 means location was saved.
+      // HTTP 200 means SQLite was updated with the latest coordinates.
       if (response.statusCode == 200) {
         return ApiResponse(success: true);
       }
@@ -60,31 +64,36 @@ class LocationRepository {
     }
   }
 
-  // Get friends that have a last known location.
+  // Calls GET /api/location/friends.
+  // The backend returns friends plus their last saved locations.
   Future<ApiResponse<List<UserModel>>> getFriendsLocations() async {
     try {
-      // Ask backend for friends with location data.
+      // Ask the backend for friends that the current user is allowed to see.
       final headers = await _getHeaders();
       final response = await http
           .get(
             Uri.parse(
-                '${ApiConstants.baseUrl}${ApiConstants.getFriendsLocations}'),
+              '${ApiConstants.baseUrl}${ApiConstants.getFriendsLocations}',
+            ),
             headers: headers,
           )
           .timeout(_timeout);
 
       final dynamic json = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        // The backend returns friends inside data.friends.
-        final List<dynamic> friendsJson =
-            json is List ? json : (json['data']?['friends'] ?? []);
+        // The current backend returns friends inside data.friends.
+        final List<dynamic> friendsJson = json is List
+            ? json
+            : (json['data']?['friends'] ?? []);
 
-        // Only keep friends that actually have usable coordinates.
+        // The map should only show friends that have real coordinates.
         final withLocation = friendsJson
             .map((j) => UserModel.fromJson(j))
-            .where((u) =>
-                u.location != null &&
-                (u.location!.latitude != 0.0 || u.location!.longitude != 0.0))
+            .where(
+              (u) =>
+                  u.location != null &&
+                  (u.location!.latitude != 0.0 || u.location!.longitude != 0.0),
+            )
             .toList();
         return ApiResponse(success: true, data: withLocation);
       }
@@ -94,7 +103,7 @@ class LocationRepository {
     }
   }
 
-  // Convert technical errors into simple UI messages.
+  // Convert backend/network failures into simple text for the map screen.
   String _err(Object e) {
     final msg = e.toString();
     if (msg.contains('TimeoutException') || msg.contains('timed out')) {

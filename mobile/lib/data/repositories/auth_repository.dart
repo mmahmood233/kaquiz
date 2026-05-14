@@ -1,28 +1,30 @@
-// jsonEncode/jsonDecode convert Dart maps to JSON and back.
+// This file contains every login/register API call the Flutter app makes.
+// It talks to the Express backend and saves the returned JWT token locally.
 import 'dart:convert';
 
-// debugPrint writes useful request logs in Xcode/Flutter console.
+// debugPrint prints request URLs and failures in the Flutter/Xcode console.
 import 'package:flutter/foundation.dart';
 
-// http sends requests to the backend API.
+// http is used to send POST/GET/PUT requests to the backend.
 import 'package:http/http.dart' as http;
 
-// App API paths.
+// ApiConstants contains the backend base URL and endpoint paths.
 import '../../core/constants/api_constants.dart';
 
-// Secure local token storage.
+// SecureStorage stores the JWT token, user ID, and email on the device.
 import '../../core/utils/secure_storage.dart';
 
-// User and response models.
+// These models turn backend JSON into Dart objects the UI can use.
 import '../models/user_model.dart';
 import '../models/api_response.dart';
 
-// Stop network calls if the backend does not answer quickly.
+// If the backend does not answer in 10 seconds, show a clear network error.
 const _timeout = Duration(seconds: 10);
 
-// AuthRepository handles all authentication API calls.
+// AuthRepository is the only class that talks to auth backend routes.
 class AuthRepository {
-  // Create a new account.
+  // Calls POST /api/auth/register with email and password.
+  // If the backend creates the account, we save the JWT token for later calls.
   Future<ApiResponse<Map<String, dynamic>>> register(
     String email,
     String password,
@@ -31,7 +33,7 @@ class AuthRepository {
       final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.register}');
       debugPrint('POST $uri');
 
-      // Send email and password to the register endpoint.
+      // The backend validates the email/password and creates the user in SQLite.
       final response = await http
           .post(
             uri,
@@ -41,15 +43,15 @@ class AuthRepository {
           .timeout(_timeout);
       debugPrint('POST $uri -> ${response.statusCode}');
 
-      // Decode backend JSON response.
+      // Backend responses are JSON, so decode them before reading message/data.
       final jsonResponse = jsonDecode(response.body);
 
-      // 201 means the account was created.
+      // HTTP 201 means the backend successfully created a new account.
       if (response.statusCode == 201) {
         final token = jsonResponse['data']['token'];
         final user = UserModel.fromJson(jsonResponse['data']['user']);
 
-        // Save token/user info so the app stays logged in.
+        // Save session data so the user stays logged in after closing the app.
         await SecureStorage.saveToken(token);
         await SecureStorage.saveUserId(user.id);
         await SecureStorage.saveEmail(user.email);
@@ -66,14 +68,12 @@ class AuthRepository {
         );
       }
     } catch (e) {
-      return ApiResponse(
-        success: false,
-        message: _friendlyError(e),
-      );
+      return ApiResponse(success: false, message: _friendlyError(e));
     }
   }
 
-  // Login with email and password.
+  // Calls POST /api/auth/login.
+  // If the backend accepts the credentials, it returns a JWT token and user.
   Future<ApiResponse<Map<String, dynamic>>> login(
     String email,
     String password,
@@ -82,7 +82,7 @@ class AuthRepository {
       final uri = Uri.parse('${ApiConstants.baseUrl}${ApiConstants.login}');
       debugPrint('POST $uri');
 
-      // Send credentials to the login endpoint.
+      // Send the typed email/password to the backend login endpoint.
       final response = await http
           .post(
             uri,
@@ -94,12 +94,12 @@ class AuthRepository {
 
       final jsonResponse = jsonDecode(response.body);
 
-      // 200 means login succeeded.
+      // HTTP 200 means the backend found the user and the password matched.
       if (response.statusCode == 200) {
         final token = jsonResponse['data']['token'];
         final user = UserModel.fromJson(jsonResponse['data']['user']);
 
-        // Save session data locally.
+        // Save session data locally so future protected API calls can work.
         await SecureStorage.saveToken(token);
         await SecureStorage.saveUserId(user.id);
         await SecureStorage.saveEmail(user.email);
@@ -116,17 +116,15 @@ class AuthRepository {
         );
       }
     } catch (e) {
-      return ApiResponse(
-        success: false,
-        message: _friendlyError(e),
-      );
+      return ApiResponse(success: false, message: _friendlyError(e));
     }
   }
 
-  // Update the logged-in user's display name.
+  // Calls PUT /api/users to update the logged-in user's display name.
+  // This request needs the JWT token because the backend must know who is editing.
   Future<ApiResponse<Map<String, dynamic>>> updateProfile(String name) async {
     try {
-      // Authenticated requests need the saved JWT token.
+      // Read the token saved during login/register and send it as Bearer auth.
       final token = await SecureStorage.getToken();
       final response = await http
           .put(
@@ -156,10 +154,11 @@ class AuthRepository {
     }
   }
 
-  // Load the current user from the saved token.
+  // Calls GET /api/auth/me.
+  // The backend checks the saved token and returns the user linked to it.
   Future<ApiResponse<UserModel>> getMe() async {
     try {
-      // Read saved token and ask backend who this token belongs to.
+      // If this token is expired or invalid, the backend will reject the request.
       final token = await SecureStorage.getToken();
       final response = await http
           .get(
@@ -173,13 +172,10 @@ class AuthRepository {
 
       final jsonResponse = jsonDecode(response.body);
 
-      // 200 means the token is valid.
+      // HTTP 200 means the token is still valid and the user can stay signed in.
       if (response.statusCode == 200) {
         final userJson = jsonResponse['data']['user'];
-        return ApiResponse(
-          success: true,
-          data: UserModel.fromJson(userJson),
-        );
+        return ApiResponse(success: true, data: UserModel.fromJson(userJson));
       }
       return ApiResponse(
         success: false,
@@ -190,18 +186,18 @@ class AuthRepository {
     }
   }
 
-  // Log out by clearing saved session data.
+  // Logout is local for this app: delete the saved token and user values.
   Future<void> logout() async {
     await SecureStorage.clearAll();
   }
 
-  // The app is considered logged in if a token exists.
+  // Quick local check used before asking the backend if the token is valid.
   Future<bool> isLoggedIn() async {
     final token = await SecureStorage.getToken();
     return token != null && token.isNotEmpty;
   }
 
-  // Convert technical network errors into user-friendly messages.
+  // Convert Dart/HTTP errors into simple messages that can be shown in the UI.
   String _friendlyError(Object e) {
     final msg = e.toString();
     final api = ApiConstants.baseUrl;

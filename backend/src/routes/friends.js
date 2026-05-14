@@ -1,8 +1,8 @@
-// Express router groups friend routes.
+// Friend routes connect /api/friends URLs to friend controller functions.
 const express = require('express');
 const router = express.Router();
 
-// Controller functions for searching, requests, friend list, and deletion.
+// Controller functions for searching users, requests, friend list, and deletion.
 const {
   getFriends,
   deleteFriend,
@@ -12,29 +12,29 @@ const {
   respondToFriendRequest
 } = require('../controllers/friendController');
 
-// Every friend route requires the user to be logged in.
+// Every friend route is private and requires a valid JWT token.
 const { protect } = require('../middleware/auth');
 
 // Apply auth protection to all routes below this line.
 router.use(protect);
 
-// Search users by email, or list all addable users.
+// GET /api/friends/search lists addable users or filters by ?email=.
 router.get('/search', searchUsers);
 
-// Send a friend request by receiver email.
+// POST /api/friends/request sends a request by receiverEmail.
 router.post('/request', sendFriendRequest);
 
-// Get incoming pending friend requests.
+// GET /api/friends/requests returns incoming pending requests.
 router.get('/requests', getPendingFriendRequests);
 
-// Accept or deny a friend request.
+// POST /api/friends/respond accepts or denies a pending request.
 router.post('/respond', respondToFriendRequest);
 
-// Get all friends.
+// GET /api/friends returns the logged-in user's accepted friends.
 router.get('/', getFriends);
 
-// Delete one friend by ID.
+// DELETE /api/friends/:id removes one accepted friend.
 router.delete('/:id', deleteFriend);
 
-// Export this router so server.js can mount it at /api/friends.
+// server.js mounts this router at /api/friends.
 module.exports = router;

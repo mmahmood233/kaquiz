@@ -1,11 +1,12 @@
 // Friends list screen.
+// It loads friends from the backend and lets the user remove a friend.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/friend_viewmodel.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_model.dart';
 
-// Shows the user's current friends and lets them remove friends.
+// Shows the current friend list returned by GET /api/friends.
 class FriendsListScreen extends StatefulWidget {
   const FriendsListScreen({super.key});
 
@@ -18,41 +19,47 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
   void initState() {
     super.initState();
 
-    // Load friends after the screen appears.
+    // Load friends after the screen appears so Provider context is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FriendViewModel>().loadFriends();
     });
   }
 
-  // Confirm and delete a friend.
+  // Shows a confirmation dialog, then deletes the friend if confirmed.
+  // FriendViewModel calls DELETE /api/friends/{friend_id}.
   Future<void> _handleDeleteFriend(
-      BuildContext context, String friendId, String friendEmail) async {
+    BuildContext context,
+    String friendId,
+    String friendEmail,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final vm = context.read<FriendViewModel>();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Remove Friend'),
         content: RichText(
           text: TextSpan(
             style: const TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-                height: 1.5),
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+              height: 1.5,
+            ),
             children: [
               const TextSpan(text: 'Remove '),
               TextSpan(
                 text: friendEmail,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary),
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
               ),
               const TextSpan(
-                  text:
-                      ' from your friends list? They won\'t be able to see your location.'),
+                text:
+                    ' from your friends list? They won\'t be able to see your location.',
+              ),
             ],
           ),
         ),
@@ -79,12 +86,14 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(success ? 'Friend removed' : 'Failed to remove friend'),
-            backgroundColor:
-                success ? AppTheme.success : AppTheme.error,
+            content: Text(
+              success ? 'Friend removed' : 'Failed to remove friend',
+            ),
+            backgroundColor: success ? AppTheme.success : AppTheme.error,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -93,7 +102,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild when friend list state changes.
+    // Rebuild when FriendViewModel loads, updates, or errors.
     return Consumer<FriendViewModel>(
       builder: (context, vm, _) {
         if (vm.state == FriendState.loading && vm.friends.isEmpty) {
@@ -122,7 +131,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
   }
 
-  // Empty state shown when the user has no friends.
+  // Empty state shown when backend returns an empty friends list.
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -170,10 +179,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
             const SizedBox(height: 4),
             Text(
               'Tap the + button in the top right',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textHint,
-              ),
+              style: TextStyle(fontSize: 13, color: AppTheme.textHint),
             ),
           ],
         ),
@@ -181,11 +187,11 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
     );
   }
 
-  // One friend row with location status and delete button.
+  // One friend row. It also shows whether this friend has shared a location.
   Widget _buildFriendCard(BuildContext context, UserModel friend) {
-    final hasLocation = friend.location != null &&
-        (friend.location!.latitude != 0.0 ||
-            friend.location!.longitude != 0.0);
+    final hasLocation =
+        friend.location != null &&
+        (friend.location!.latitude != 0.0 || friend.location!.longitude != 0.0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -218,8 +224,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                       decoration: BoxDecoration(
                         color: AppTheme.success,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppTheme.surface, width: 2),
+                        border: Border.all(color: AppTheme.surface, width: 2),
                       ),
                     ),
                   ),
@@ -262,9 +267,7 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        hasLocation
-                            ? 'Location shared'
-                            : 'No location',
+                        hasLocation ? 'Location shared' : 'No location',
                         style: TextStyle(
                           fontSize: 12,
                           color: hasLocation
@@ -287,8 +290,11 @@ class _FriendsListScreenState extends State<FriendsListScreen> {
                   color: AppTheme.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.person_remove_rounded,
-                    color: AppTheme.error, size: 18),
+                child: Icon(
+                  Icons.person_remove_rounded,
+                  color: AppTheme.error,
+                  size: 18,
+                ),
               ),
               onPressed: () =>
                   _handleDeleteFriend(context, friend.id, friend.email),

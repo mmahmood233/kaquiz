@@ -1,4 +1,5 @@
-// Login screen UI and form validation.
+// Login screen.
+// It validates the form, then asks AuthViewModel to call the backend login API.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -6,7 +7,7 @@ import 'register_screen.dart';
 import '../home/home_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
-// Screen where existing users sign in with email and password.
+// Existing users enter email/password here to sign in.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Form key and text controllers read/validate user input.
+  // Controllers hold what the user typed before we send it to the backend.
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -23,13 +24,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    // Dispose controllers to prevent memory leaks.
+    // Dispose controllers because this screen created them.
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // Validate form, call backend login, and navigate on success.
+  // Runs when the Sign In button is pressed.
+  // If the form is valid, AuthViewModel sends POST /api/auth/login.
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -43,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Replace login screen with home after successful login.
+      // Login worked, so remove this screen and open the main app.
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, animation, _) => const HomeScreen(),
@@ -53,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } else {
-      // Show backend or network error message.
+      // Login failed, so show the backend/network message from AuthViewModel.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authViewModel.errorMessage ?? 'Login failed'),
@@ -65,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Main login layout.
+    // Main login layout with header, email field, password field, and button.
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
@@ -99,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Top branded header.
+  // Top branded header shown above the login form.
   Widget _buildHeader() {
     return Container(
       height: 280,
@@ -148,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Email input with basic validation.
+  // Email field checks for a simple email format before calling the backend.
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -170,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Password input with show/hide button.
+  // Password field has a visibility toggle and submits when the keyboard is done.
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -198,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Submit button that shows loading from AuthViewModel.
+  // Button reads AuthViewModel.loading so users cannot submit twice.
   Widget _buildLoginButton() {
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, _) {
@@ -212,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Link to account creation screen.
+  // Opens RegisterScreen for users who do not have an account yet.
   Widget _buildRegisterLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

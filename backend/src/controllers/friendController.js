@@ -1,18 +1,18 @@
-// UserModel contains database helper functions for users and friendships.
+// Friend controller supports the Swagger-style /api/friends routes.
+// Some app screens use /api/invites, but these routes stay available too.
 const User = require('../models/UserModel');
 
-// db is the async SQLite helper used for custom invite queries.
+// db is used for invite-specific SQL that does not belong in UserModel.
 const db = require('../config/database');
 
 // GET /api/friends
-// Return all friends for the logged-in user, including their last known location.
+// Returns all accepted friends for the logged-in user.
 exports.getFriends = async (req, res, next) => {
   try {
-    // req.user.id comes from the auth middleware.
-    // It tells us which user's friends to load.
+    // req.user.id comes from the verified JWT token.
     const friends = await User.getFriends(req.user.id);
 
-    // Convert database rows into the shape the mobile app expects.
+    // Convert SQLite rows into the user shape Flutter expects.
     const data = friends.map(f => ({
         id: f.id,
         _id: String(f.id),
@@ -28,7 +28,7 @@ exports.getFriends = async (req, res, next) => {
         createdAt: f.created_at
       }));
 
-    // Send the friends list back to the app.
+    // Send friends inside data.friends to match the mobile model parsing.
     res.status(200).json({
       success: true,
       data: {
@@ -36,32 +36,32 @@ exports.getFriends = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Let the global error handler deal with unexpected errors.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };
 
 // DELETE /api/friends/:id
-// Remove a friend from the logged-in user's friend list.
+// Removes an accepted friendship for both users.
 exports.deleteFriend = async (req, res, next) => {
   try {
-    // The friend ID comes from the URL.
+    // The friend ID comes from the URL path.
     const friendId = parseInt(req.params.id, 10);
 
-    // Reject invalid IDs before touching the database.
+    // Reject invalid IDs before running any SQL.
     if (isNaN(friendId)) {
       return res.status(400).json({ success: false, message: 'Invalid friend ID' });
     }
 
-    // Make sure this user is actually friends with that ID.
+    // Make sure the logged-in user is actually friends with this ID.
     if (!await User.isFriend(req.user.id, friendId)) {
       return res.status(404).json({ success: false, message: 'Friend not found' });
     }
 
-    // Remove the friendship in both directions.
+    // Remove both rows: me -> friend and friend -> me.
     await User.removeFriend(req.user.id, friendId);
 
-    // Delete old invites between these two users so they can request again later.
+    // Clear old invite history so either user can send a new request later.
     await db.run(
       'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [req.user.id, friendId, friendId, req.user.id]
@@ -74,17 +74,17 @@ exports.deleteFriend = async (req, res, next) => {
 };
 
 // GET /api/friends/search?email=...
-// Search addable users by email, or return all addable users when email is empty.
+// Searches users that the logged-in user can still add.
 exports.searchUsers = async (req, res, next) => {
   try {
-    // Read the optional email search text from the query string.
+    // Flutter can send ?email=abc or leave it empty to list all addable users.
     const { email } = req.query;
     const searchText = typeof email === 'string' ? email.trim() : '';
 
-    // Search users but exclude the logged-in user from results.
+    // Exclude self, existing friends, and users with pending invites.
     const users = await User.searchByEmail(searchText, req.user.id);
 
-    // Return safe public user data only.
+    // Return public user data only, with no password fields.
     res.status(200).json({
       success: true,
       data: {
@@ -96,64 +96,63 @@ exports.searchUsers = async (req, res, next) => {
   }
 };
 
-// POST /api/friends/request — Swagger-compatible request by email
-// Send a friend request using the receiver's email address.
+// POST /api/friends/request
+// Sends a friend request using receiverEmail in the request body.
 exports.sendFriendRequest = async (req, res, next) => {
   try {
-    // The frontend sends the email of the user it wants to add.
+    // Swagger clients send the email of the user they want to add.
     const { receiverEmail } = req.body;
 
-    // Receiver email is required.
+    // receiverEmail is required because this route searches by email.
     if (!receiverEmail || receiverEmail.trim().length < 1) {
       return res.status(400).json({ success: false, message: 'Please provide receiverEmail' });
     }
 
-    // Find the user who should receive the request.
+    // Find the account that should receive the request.
     const receiver = await User.findByEmail(receiverEmail.trim().toLowerCase());
     if (!receiver) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // A user cannot send a friend request to themselves.
+    // Users cannot send friend requests to themselves.
     if (req.user.id === receiver.id) {
       return res.status(400).json({ success: false, message: 'Cannot send request to yourself' });
     }
 
-    // If they are already friends, another request is not allowed.
+    // Existing friends do not need another request.
     if (await User.isFriend(req.user.id, receiver.id)) {
       return res.status(400).json({ success: false, message: 'Already friends with this user' });
     }
 
-    // Check for existing invites in either direction.
-    // This prevents duplicate pending friend requests.
+    // Check invites in both directions to prevent duplicate pending requests.
     const existingInvites = await db.all(
       'SELECT * FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [req.user.id, receiver.id, receiver.id, req.user.id]
     );
 
     if (existingInvites.length > 0) {
-      // Pending means someone already sent a request, so stop here.
+      // Pending means one of these users already sent a request.
       if (existingInvites.some(invite => invite.status === 'pending')) {
         return res.status(400).json({ success: false, message: 'A friend request is already pending' });
       }
 
-      // If old invites were accepted or denied, delete all of them so a fresh request can be created.
+      // Old accepted/denied invites are cleared so a new request can be sent.
       await db.run(
         'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
         [req.user.id, receiver.id, receiver.id, req.user.id]
       );
     }
 
-    // Create the new pending friend request.
+    // Create the new pending invite row.
     const result = await db.run(
       'INSERT INTO invites (sender_id, receiver_id) VALUES (?, ?)',
       [req.user.id, receiver.id]
     );
 
-    // Load the created invite so we can return it in the response.
+    // Load the new invite row so the response can include its ID/status.
     const friendRequest = await db.get('SELECT * FROM invites WHERE id = ?', [result.lastID]);
 
-    // Return the created request in the Swagger-friendly format.
+    // Return a Swagger-friendly request object.
     res.status(201).json({
       success: true,
       message: 'Friend request sent successfully',
@@ -169,13 +168,13 @@ exports.sendFriendRequest = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };
 
-// GET /api/friends/requests — Swagger-compatible incoming pending requests
-// Return pending friend requests sent to the logged-in user.
+// GET /api/friends/requests
+// Returns incoming pending requests for the logged-in user.
 exports.getPendingFriendRequests = async (req, res, next) => {
   try {
     // Join invites with users so each request includes sender profile data.
@@ -214,19 +213,19 @@ exports.getPendingFriendRequests = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };
 
-// POST /api/friends/respond — Swagger-compatible accept/deny by request ID
-// Accept or deny a pending friend request.
+// POST /api/friends/respond
+// Accepts or denies a pending request by requestId.
 exports.respondToFriendRequest = async (req, res, next) => {
   try {
-    // The app sends the request ID and the action to take.
+    // Client sends requestId and action: "accept", "deny", or "decline".
     const { requestId, action } = req.body;
 
-    // Accept both "deny" and "decline" so older clients still work.
+    // Treat "decline" the same as "deny" for compatibility.
     const normalizedAction = action === 'decline' ? 'deny' : action;
 
     // requestId and a valid action are required.
@@ -234,13 +233,13 @@ exports.respondToFriendRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide requestId and action accept or deny' });
     }
 
-    // Only the receiver of a pending request is allowed to respond to it.
+    // Only the receiver of a pending request is allowed to respond.
     const invite = await db.get(
       'SELECT * FROM invites WHERE id = ? AND receiver_id = ? AND status = ?',
       [requestId, req.user.id, 'pending']
     );
 
-    // If no matching pending invite exists, return not found.
+    // No matching pending invite means this request cannot be handled.
     if (!invite) {
       return res.status(404).json({ success: false, message: 'Friend request not found' });
     }
@@ -256,7 +255,7 @@ exports.respondToFriendRequest = async (req, res, next) => {
     await db.run('UPDATE invites SET status = ? WHERE id = ?', ['denied', invite.id]);
     res.status(200).json({ success: true, message: 'Friend request denied successfully' });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };

@@ -1,17 +1,18 @@
-// UserModel handles user and friendship database actions.
+// Invite controller is the friend-request flow used by the Flutter app.
+// It uses user IDs in the URL: /api/invites/:user_id.
 const User = require('../models/UserModel');
 
-// db is used here for invite-specific SQL queries.
+// db runs invite-specific SQLite queries.
 const db = require('../config/database');
 
 // GET /api/invites/:user_id
-// Return incoming and outgoing pending friend requests for the logged-in user.
+// Returns incoming and outgoing pending friend requests.
 exports.getInvites = async (req, res, next) => {
   try {
-    // Always use req.user.id so users can only see their own invites.
+    // Ignore the URL user_id for security; use the logged-in user from JWT.
     const userId = req.user.id;
 
-    // Incoming requests are requests other people sent to this user.
+    // Incoming requests are requests other users sent to this account.
     const incoming = await db.all(`
       SELECT i.id, i.created_at,
              s.id as sender_id, s.name as sender_name, s.avatar as sender_avatar, s.email as sender_email
@@ -21,7 +22,7 @@ exports.getInvites = async (req, res, next) => {
       ORDER BY i.created_at DESC
     `, [userId]);
 
-    // Outgoing requests are requests this user sent to other people.
+    // Outgoing requests are requests this account sent to other users.
     const outgoing = await db.all(`
       SELECT i.id, i.created_at,
              r.id as recipient_id, r.name as recipient_name, r.avatar as recipient_avatar, r.email as recipient_email
@@ -31,7 +32,7 @@ exports.getInvites = async (req, res, next) => {
       ORDER BY i.created_at DESC
     `, [userId]);
 
-    // Format the response so the app can show received and sent tabs.
+    // Flutter splits this response into Received and Sent tabs.
     res.status(200).json({
       success: true,
       data: {
@@ -58,22 +59,22 @@ exports.getInvites = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Send unexpected errors to the global error handler.
+    // Unexpected errors go to the global error handler.
     next(error);
   }
 };
 
 // POST /api/invites/:user_id
-// Send a friend request by receiver user ID.
+// Sends a friend request to the receiver user ID in the URL.
 exports.sendInvite = async (req, res, next) => {
   try {
-    // senderId is the logged-in user.
+    // senderId always comes from the verified JWT token.
     const senderId = req.user.id;
 
-    // receiverId comes from the URL.
+    // receiverId is the user being added from the Flutter search result.
     const receiverId = parseInt(req.params.user_id, 10);
 
-    // The receiver ID must be a number.
+    // The receiver ID must be a valid number before querying SQLite.
     if (isNaN(receiverId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' });
     }
@@ -83,37 +84,37 @@ exports.sendInvite = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot send invite to yourself' });
     }
 
-    // Make sure the receiver exists.
+    // Make sure the selected user still exists.
     const receiver = await User.findById(receiverId);
     if (!receiver) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Do not allow a request if they are already friends.
+    // Existing friends do not need a new request.
     if (await User.isFriend(senderId, receiverId)) {
       return res.status(400).json({ success: false, message: 'Already friends with this user' });
     }
 
-    // Find any invites between these two users in either direction.
+    // Check both directions so duplicate pending requests cannot happen.
     const existingInvites = await db.all(
       'SELECT * FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
       [senderId, receiverId, receiverId, senderId]
     );
 
     if (existingInvites.length > 0) {
-      // If any request is still pending, do not create a duplicate request.
+      // If any request is still pending, stop here.
       if (existingInvites.some(invite => invite.status === 'pending')) {
         return res.status(400).json({ success: false, message: 'An invite is already pending' });
       }
 
-      // If old requests were already handled, remove all of them so a new request can be sent.
+      // Old accepted/denied invites are removed so users can reconnect later.
       await db.run(
         'DELETE FROM invites WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)',
         [senderId, receiverId, receiverId, senderId]
       );
     }
 
-    // Create the new pending invite.
+    // Create the new pending invite row.
     await db.run(
       'INSERT INTO invites (sender_id, receiver_id) VALUES (?, ?)',
       [senderId, receiverId]
@@ -126,7 +127,7 @@ exports.sendInvite = async (req, res, next) => {
 };
 
 // POST /api/invites/:user_id/accept
-// Accept a friend request from the user ID in the URL.
+// Accepts a pending friend request from the sender ID in the URL.
 exports.acceptInvite = async (req, res, next) => {
   try {
     // receiverId is the logged-in user accepting the request.
@@ -135,12 +136,12 @@ exports.acceptInvite = async (req, res, next) => {
     // senderId is the user who originally sent the request.
     const senderId = parseInt(req.params.user_id, 10);
 
-    // The sender ID must be valid.
+    // The sender ID must be valid before querying SQLite.
     if (isNaN(senderId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' });
     }
 
-    // Find a pending invite from sender to receiver.
+    // Only accept a request that is pending and sent to this logged-in user.
     const invite = await db.get(
       'SELECT * FROM invites WHERE sender_id = ? AND receiver_id = ? AND status = ?',
       [senderId, receiverId, 'pending']
@@ -162,27 +163,27 @@ exports.acceptInvite = async (req, res, next) => {
 };
 
 // POST /api/invites/:user_id/decline
-// Deny a friend request from the user ID in the URL.
+// Declines a pending friend request from the sender ID in the URL.
 exports.declineInvite = async (req, res, next) => {
   try {
-    // receiverId is the logged-in user denying the request.
+    // receiverId is the logged-in user declining the request.
     const receiverId = req.user.id;
 
     // senderId is the user who originally sent the request.
     const senderId = parseInt(req.params.user_id, 10);
 
-    // The sender ID must be valid.
+    // The sender ID must be valid before querying SQLite.
     if (isNaN(senderId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID' });
     }
 
-    // Find a pending invite from sender to receiver.
+    // Only decline a request that is pending and sent to this logged-in user.
     const invite = await db.get(
       'SELECT * FROM invites WHERE sender_id = ? AND receiver_id = ? AND status = ?',
       [senderId, receiverId, 'pending']
     );
 
-    // If there is no pending invite, there is nothing to deny.
+    // If there is no pending invite, there is nothing to decline.
     if (!invite) {
       return res.status(404).json({ success: false, message: 'Invitation not found' });
     }

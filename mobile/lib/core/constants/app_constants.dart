@@ -1,11 +1,11 @@
-// AppConstants stores values reused in multiple Flutter files.
+// AppConstants stores small app-wide values reused by multiple Flutter files.
 class AppConstants {
-  // Display name of the app.
+  // Name shown in app titles and labels.
   static const String appName = 'Friend Finder';
 
-  // How often the app sends current location while open.
+  // The requirement says to send location every 5 seconds while the app is open.
   static const int locationUpdateInterval = 5;
 
-  // Default map zoom when centering on a user.
+  // Zoom level used when the map centers on the current user or a friend.
   static const double defaultZoom = 14.0;
 }

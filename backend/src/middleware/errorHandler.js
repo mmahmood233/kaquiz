@@ -1,29 +1,29 @@
 // Central error handler for Express.
-// If a controller calls next(error), the request ends here.
+// If a controller calls next(error), this sends the final JSON response.
 const errorHandler = (err, req, res, next) => {
-  // Use the error status if it exists, otherwise use 500.
+  // Use a custom error status if one exists, otherwise use server error 500.
   let statusCode = err.statusCode || 500;
 
-  // Use the error message if it exists, otherwise use a general message.
+  // Use the specific error message when available.
   let message = err.message || 'Internal Server Error';
 
-  // SQLite constraint errors usually mean duplicate or invalid related data.
+  // SQLite constraint errors often mean duplicate email/request/friendship data.
   if (err.code === 'SQLITE_CONSTRAINT') {
     statusCode = 400;
     message = 'A conflict occurred with existing data';
   }
 
-  // Log errors locally, but avoid noisy production logs.
+  // Log backend errors locally while developing.
   if (process.env.NODE_ENV !== 'production') {
     console.error('[Error]', err.message);
   }
 
-  // Send a consistent JSON error response.
+  // Send the same error shape the Flutter app expects.
   res.status(statusCode).json({
     success: false,
     message
   });
 };
 
-// Export this so server.js can use it after all routes.
+// server.js mounts this after all route files.
 module.exports = errorHandler;

@@ -1,4 +1,5 @@
-// Home screen with tabs for map, friends, and requests.
+// Home screen shown after login.
+// It holds the Map, Friends, and Requests tabs in one place.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -11,7 +12,7 @@ import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
-// Main screen shown after login.
+// Main authenticated screen for the app.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,10 +21,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Current bottom-tab index.
+  // Current selected bottom tab: 0 map, 1 friends, 2 requests.
   int _currentIndex = 0;
 
-  // Screens shown inside the IndexedStack.
+  // IndexedStack keeps each tab alive instead of rebuilding it every tap.
   final List<Widget> _screens = const [
     MapScreen(),
     FriendsListScreen(),
@@ -34,20 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    // Start loading app data after the first frame.
+    // Start backend/GPS loading after the first frame so context is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initialize();
     });
   }
 
-  // Start location tracking and load pending requests.
+  // Starts map location sharing and loads request count for the badge.
   Future<void> _initialize() async {
     if (!mounted) return;
     context.read<MapViewModel>().initializeLocation();
     context.read<FriendViewModel>().loadPendingRequests();
   }
 
-  // Open profile/settings screen.
+  // Opens the profile screen where the user can edit name or logout.
   void _openProfile() {
     Navigator.of(
       context,
@@ -56,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // IndexedStack keeps tab state alive while switching tabs.
+    // The map tab uses a full-screen map, so it hides the normal app bar.
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: _currentIndex == 0 ? null : _buildAppBar(),
@@ -65,7 +66,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Top app bar with title, add-friend button, and profile button.
+  // App bar used on Friends and Requests tabs.
+  // Friends tab also shows the add-friend button.
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppTheme.surface,
@@ -147,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Custom bottom navigation bar.
+  // Bottom navigation bar. The Requests icon shows pending incoming count.
   Widget _buildBottomNav() {
     return Consumer<FriendViewModel>(
       builder: (context, friendViewModel, _) {
@@ -196,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Standard nav item without badge.
+  // Standard bottom-nav item used by Map and Friends tabs.
   Widget _navItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
     return Expanded(
@@ -238,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Nav item with pending request badge.
+  // Bottom-nav item with a red badge for pending friend requests.
   Widget _navItemWithBadge(
     int index,
     IconData icon,
@@ -319,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Change tab and refresh the data needed for that tab.
+  // Changes tab and refreshes the backend data that tab needs.
   void _onNavTap(int index) {
     if (_currentIndex != index) {
       setState(() => _currentIndex = index);
